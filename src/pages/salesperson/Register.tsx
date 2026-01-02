@@ -17,6 +17,7 @@ interface MyDataItem {
   contract_status: string;
   termination_month: string;
   actual_sales: number;
+  contract_date: string;
   contract_client: string;
   contract_month: string;
   client_name: string;
@@ -191,6 +192,7 @@ const SalespersonMyData: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 whitespace-nowrap">계약날짜</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 whitespace-nowrap">업체명</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 whitespace-nowrap">대표자</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 whitespace-nowrap">연락처</th>
@@ -204,13 +206,16 @@ const SalespersonMyData: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {myData.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
                   담당하는 업체 데이터가 없습니다.
                 </td>
               </tr>
             ) : (
               myData.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                    {item.contract_date || '-'}
+                  </td>
                   <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                     {item.company_name}
                   </td>

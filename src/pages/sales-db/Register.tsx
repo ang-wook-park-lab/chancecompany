@@ -22,6 +22,7 @@ interface SalesDBRow {
   contract_status: string;
   termination_month: string;
   actual_sales: string;
+  contract_date: string;
   contract_client: string;
   contract_month: string;
   client_name: string;
@@ -44,6 +45,7 @@ const emptyRow: SalesDBRow = {
   contract_status: '',
   termination_month: '',
   actual_sales: '',
+  contract_date: '',
   contract_client: '',
   contract_month: '',
   client_name: '',
@@ -109,6 +111,7 @@ const SalesDBRegister: React.FC = () => {
           contract_status: item.contract_status || '',
           termination_month: item.termination_month || '',
           actual_sales: item.actual_sales ? String(item.actual_sales) : '',
+          contract_date: item.contract_date || '',
           contract_client: item.contract_client ? formatNumberWithCommas(item.contract_client) : '',
           contract_month: item.contract_month || '',
           client_name: item.client_name || '',
@@ -293,6 +296,7 @@ const SalesDBRegister: React.FC = () => {
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약여부</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">해임월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">실제매출</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약날짜</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약기장료</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">거래처</th>
@@ -428,6 +432,14 @@ const SalesDBRegister: React.FC = () => {
                     value={row.actual_sales}
                     onChange={(e) => handleCellChange(index, 'actual_sales', e.target.value)}
                     className="w-24 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
+                  />
+                </td>
+                <td className="border border-gray-300 px-1 py-1">
+                  <input
+                    type="date"
+                    value={row.contract_date}
+                    onChange={(e) => handleCellChange(index, 'contract_date', e.target.value)}
+                    className="w-36 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">

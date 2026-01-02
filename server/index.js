@@ -186,6 +186,17 @@ function initDatabase() {
     }
   }
 
+  // 기존 sales_db 테이블에 contract_date 필드 추가 (없으면)
+  try {
+    db.exec('ALTER TABLE sales_db ADD COLUMN contract_date DATE');
+    console.log('contract_date 필드가 sales_db 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 에러 발생, 무시
+    if (!e.message.includes('duplicate column')) {
+      console.error('contract_date 필드 추가 중 오류:', e.message);
+    }
+  }
+
   console.log('Database initialized at:', dbPath);
 }
 
@@ -599,21 +610,21 @@ app.post('/api/sales-db', (req, res) => {
     const { 
       proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
       address, contact, industry, sales_amount, existing_client, contract_status,
-      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date
+      termination_month, actual_sales, contract_date, contract_client, contract_month, client_name, feedback, april_type1_date
     } = req.body;
     
     const stmt = db.prepare(`
       INSERT INTO sales_db (
         proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
         address, contact, industry, sales_amount, existing_client, contract_status,
-        termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        termination_month, actual_sales, contract_date, contract_client, contract_month, client_name, feedback, april_type1_date
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     const info = stmt.run(
       proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
       address, contact, industry, sales_amount, existing_client, contract_status,
-      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date
+      termination_month, actual_sales, contract_date, contract_client, contract_month, client_name, feedback, april_type1_date
     );
     res.json({ success: true, id: info.lastInsertRowid });
   } catch (error) {
@@ -642,7 +653,7 @@ app.put('/api/sales-db/:id', (req, res) => {
     const { 
       proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
       address, contact, industry, sales_amount, existing_client, contract_status,
-      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date, commission_rate
+      termination_month, actual_sales, contract_date, contract_client, contract_month, client_name, feedback, april_type1_date, commission_rate
     } = body;
     
     const stmt = db.prepare(`
@@ -650,7 +661,7 @@ app.put('/api/sales-db/:id', (req, res) => {
       SET proposal_date = ?, proposer = ?, salesperson_id = ?, meeting_status = ?, 
           company_name = ?, representative = ?, address = ?, contact = ?, industry = ?,
           sales_amount = ?, existing_client = ?, contract_status = ?, termination_month = ?,
-          actual_sales = ?, contract_client = ?, contract_month = ?, client_name = ?,
+          actual_sales = ?, contract_date = ?, contract_client = ?, contract_month = ?, client_name = ?,
           feedback = ?, april_type1_date = ?, commission_rate = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
@@ -658,7 +669,7 @@ app.put('/api/sales-db/:id', (req, res) => {
     stmt.run(
       proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
       address, contact, industry, sales_amount, existing_client, contract_status,
-      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date, commission_rate || 500, id
+      termination_month, actual_sales, contract_date, contract_client, contract_month, client_name, feedback, april_type1_date, commission_rate || 500, id
     );
     res.json({ success: true });
   } catch (error) {
