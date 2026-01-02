@@ -545,6 +545,19 @@ app.get('/api/sales-db', (req, res) => {
   }
 });
 
+// 모든 sales_db 데이터 조회 (DB등록 페이지용)
+app.get('/api/sales-db/all', (req, res) => {
+  try {
+    const allData = db.prepare(`
+      SELECT * FROM sales_db 
+      ORDER BY created_at DESC
+    `).all();
+    res.json({ success: true, data: allData });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
 app.post('/api/sales-db', (req, res) => {
   try {
     const { 

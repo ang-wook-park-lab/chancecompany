@@ -56,8 +56,23 @@ const SalesDBRegister: React.FC = () => {
   const [rows, setRows] = useState<SalesDBRow[]>([{ ...emptyRow }]);
   const [isUploading, setIsUploading] = useState(false);
 
+  // 천 단위 쉼표 포맷팅 함수
+  const formatNumberWithCommas = (value: string): string => {
+    // 숫자만 추출
+    const numbersOnly = value.replace(/[^0-9]/g, '');
+    if (!numbersOnly) return '';
+    // 천 단위 쉼표 추가
+    return Number(numbersOnly).toLocaleString('ko-KR');
+  };
+
+  // 쉼표가 포함된 값을 숫자로 변환
+  const parseNumberWithCommas = (value: string): string => {
+    return value.replace(/,/g, '');
+  };
+
   useEffect(() => {
     fetchSalespersons();
+    fetchExistingData();
   }, []);
 
   const fetchSalespersons = async () => {
@@ -69,6 +84,42 @@ const SalesDBRegister: React.FC = () => {
       }
     } catch (error) {
       console.error('영업자 목록 조회 실패:', error);
+    }
+  };
+
+  const fetchExistingData = async () => {
+    try {
+      const response = await fetch('/api/sales-db/all');
+      const result = await response.json();
+      if (result.success && result.data && result.data.length > 0) {
+        // 기존 데이터를 행으로 변환
+        const existingRows = result.data.map((item: any) => ({
+          id: item.id,
+          proposal_date: item.proposal_date || '',
+          proposer: item.proposer || '',
+          salesperson_id: item.salesperson_id ? String(item.salesperson_id) : '',
+          meeting_status: item.meeting_status || '',
+          company_name: item.company_name || '',
+          representative: item.representative || '',
+          address: item.address || '',
+          contact: item.contact || '',
+          industry: item.industry || '',
+          sales_amount: item.sales_amount ? String(item.sales_amount) : '',
+          existing_client: item.existing_client || '',
+          contract_status: item.contract_status || '',
+          termination_month: item.termination_month || '',
+          actual_sales: item.actual_sales ? String(item.actual_sales) : '',
+          contract_client: item.contract_client ? formatNumberWithCommas(item.contract_client) : '',
+          contract_month: item.contract_month || '',
+          client_name: item.client_name || '',
+          feedback: item.feedback || '',
+          april_type1_date: item.april_type1_date || '',
+        }));
+        // 기존 데이터 + 빈 행 하나 추가
+        setRows([...existingRows, { ...emptyRow }]);
+      }
+    } catch (error) {
+      console.error('기존 데이터 조회 실패:', error);
     }
   };
 
@@ -87,20 +138,6 @@ const SalesDBRegister: React.FC = () => {
     const newRows = [...rows];
     newRows[index] = { ...newRows[index], [field]: value };
     setRows(newRows);
-  };
-
-  // 천 단위 쉼표 포맷팅 함수
-  const formatNumberWithCommas = (value: string): string => {
-    // 숫자만 추출
-    const numbersOnly = value.replace(/[^0-9]/g, '');
-    if (!numbersOnly) return '';
-    // 천 단위 쉼표 추가
-    return Number(numbersOnly).toLocaleString('ko-KR');
-  };
-
-  // 쉼표가 포함된 값을 숫자로 변환
-  const parseNumberWithCommas = (value: string): string => {
-    return value.replace(/,/g, '');
   };
 
   // 계약기장료 입력 핸들러
@@ -122,16 +159,22 @@ const SalesDBRegister: React.FC = () => {
           continue; // 필수 필드 체크
         }
         
-        const response = await fetch('/api/sales-db', {
-          method: 'POST',
+        const payload = {
+          ...row,
+          salesperson_id: row.salesperson_id ? parseInt(row.salesperson_id) : null,
+          sales_amount: row.sales_amount ? parseInt(row.sales_amount) : null,
+          actual_sales: row.actual_sales ? parseInt(row.actual_sales) : null,
+          contract_client: row.contract_client ? parseNumberWithCommas(row.contract_client) : '',
+        };
+
+        // 기존 데이터(id가 있는 경우) - UPDATE, 새 데이터 - INSERT
+        const url = row.id ? `/api/sales-db/${row.id}` : '/api/sales-db';
+        const method = row.id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+          method: method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...row,
-            salesperson_id: row.salesperson_id ? parseInt(row.salesperson_id) : null,
-            sales_amount: row.sales_amount ? parseInt(row.sales_amount) : null,
-            actual_sales: row.actual_sales ? parseInt(row.actual_sales) : null,
-            contract_client: row.contract_client ? parseNumberWithCommas(row.contract_client) : '',
-          }),
+          body: JSON.stringify(payload),
         });
 
         const result = await response.json();
@@ -147,7 +190,8 @@ const SalesDBRegister: React.FC = () => {
 
       if (successCount > 0) {
         alert(`${successCount}건이 저장되었습니다.${errorCount > 0 ? ` (${errorCount}건 실패)` : ''}`);
-        setRows([{ ...emptyRow }]);
+        // 저장 후 데이터 다시 로드
+        await fetchExistingData();
       } else {
         alert('저장할 데이터가 없습니다. 업체명은 필수 입력 항목입니다.');
       }
