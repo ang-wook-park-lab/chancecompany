@@ -125,10 +125,10 @@ const SalesDBSearch: React.FC = () => {
                   작업
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  설의날짜
+                  섭외날자
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  설의자
+                  섭외자
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   영업자
@@ -137,7 +137,7 @@ const SalesDBSearch: React.FC = () => {
                   미팅여부
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  연차명(회사명)
+                  업체명
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   대표자
@@ -179,7 +179,7 @@ const SalesDBSearch: React.FC = () => {
                   기타(피드백)
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  4월1종날짜
+                  해피콜내용
                 </th>
               </tr>
             </thead>

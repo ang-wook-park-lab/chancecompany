@@ -191,11 +191,11 @@ const SalesDBRegister: React.FC = () => {
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">작업</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">설의날짜</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">설의자</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">섭외날자</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">섭외자</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">영업자</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">미팅여부</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">연차명<span className="text-red-500">*</span></th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">업체명<span className="text-red-500">*</span></th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">대표자</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">주소</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">연락처</th>
@@ -209,7 +209,7 @@ const SalesDBRegister: React.FC = () => {
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">거래처</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">기타(피드백)</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">4월1종날짜</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">해피콜내용</th>
             </tr>
           </thead>
           <tbody>
@@ -389,7 +389,7 @@ const SalesDBRegister: React.FC = () => {
       </div>
 
       <div className="mt-4 text-sm text-gray-600">
-        <p>• 연차명(회사명)은 필수 입력 항목입니다.</p>
+        <p>• 업체명은 필수 입력 항목입니다.</p>
         <p>• CSV 파일 업로드 시 헤더는 한글 또는 영문을 사용할 수 있습니다.</p>
         <p>• 행을 추가하여 여러 건을 한 번에 입력할 수 있습니다.</p>
       </div>
