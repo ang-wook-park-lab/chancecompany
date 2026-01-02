@@ -540,7 +540,13 @@ app.get('/api/attendance', (req, res) => {
 // 출근 기록 (위치 정보 포함)
 app.post('/api/attendance/clock-in', (req, res) => {
   try {
-    const { employee_id, date, check_in, check_in_location, check_in_coordinates } = req.body;
+    let { employee_id, date, check_in, check_in_location, check_in_coordinates } = req.body;
+    
+    // employee_id가 실제로 user_id인 경우 employees 테이블에서 employee_id를 찾음
+    const employee = db.prepare('SELECT id FROM employees WHERE user_id = ?').get(employee_id);
+    if (employee) {
+      employee_id = employee.id;
+    }
     
     // 기존 기록이 있는지 확인
     const existing = db.prepare('SELECT id FROM attendance WHERE employee_id = ? AND date = ?')
@@ -573,7 +579,13 @@ app.post('/api/attendance/clock-in', (req, res) => {
 // 퇴근 기록 (위치 정보 포함)
 app.post('/api/attendance/clock-out', (req, res) => {
   try {
-    const { employee_id, date, check_out, check_out_location, check_out_coordinates } = req.body;
+    let { employee_id, date, check_out, check_out_location, check_out_coordinates } = req.body;
+    
+    // employee_id가 실제로 user_id인 경우 employees 테이블에서 employee_id를 찾음
+    const employee = db.prepare('SELECT id FROM employees WHERE user_id = ?').get(employee_id);
+    if (employee) {
+      employee_id = employee.id;
+    }
     
     // 기존 출근 기록 업데이트
     const result = db.prepare(`
