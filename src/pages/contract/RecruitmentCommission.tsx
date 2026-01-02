@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Plus, Trash2 } from 'lucide-react';
+import { DollarSign, Plus, Trash2, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Salesperson {
   id: number;
@@ -26,6 +27,7 @@ const RecruitmentCommission: React.FC = () => {
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     client_name: '',
     client_company: '',
@@ -147,6 +149,99 @@ const RecruitmentCommission: React.FC = () => {
     });
   };
 
+  const downloadSampleFile = () => {
+    // 샘플 데이터 생성
+    const sampleData = [
+      {
+        '거래처명': '샘플거래처',
+        '회사명': '샘플회사',
+        '담당영업자ID': '1',
+        '계약금액': '10000000',
+        '수수료율': '10',
+        '계약일': '2026-01-01',
+        '메모': '샘플 메모'
+      }
+    ];
+
+    // 워크시트 생성
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    
+    // 컬럼 너비 설정
+    const colWidths = [
+      { wch: 15 }, // 거래처명
+      { wch: 15 }, // 회사명
+      { wch: 15 }, // 담당영업자ID
+      { wch: 15 }, // 계약금액
+      { wch: 12 }, // 수수료율
+      { wch: 12 }, // 계약일
+      { wch: 30 }  // 메모
+    ];
+    ws['!cols'] = colWidths;
+
+    // 워크북 생성
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '섭외거래처수수료');
+
+    // 파일 다운로드
+    XLSX.writeFile(wb, '섭외거래처수수료_샘플파일.xlsx');
+  };
+
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const row of jsonData) {
+        try {
+          const rowData: any = row;
+          const response = await fetch('/api/contracts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contract_type: 'recruitment',
+              client_name: rowData['거래처명'] || '',
+              client_company: rowData['회사명'] || '',
+              salesperson_id: parseInt(rowData['담당영업자ID']) || 0,
+              contract_amount: parseInt(rowData['계약금액']) || 0,
+              commission_rate: parseFloat(rowData['수수료율']) || 0,
+              commission_amount: Math.round((parseInt(rowData['계약금액']) || 0) * (parseFloat(rowData['수수료율']) || 0) / 100),
+              contract_date: rowData['계약일'] || '',
+              notes: rowData['메모'] || '',
+            }),
+          });
+          const result = await response.json();
+          if (result.success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error('행 업로드 실패:', error);
+          errorCount++;
+        }
+      }
+
+      alert(`업로드 완료!\n성공: ${successCount}건\n실패: ${errorCount}건`);
+      fetchContracts();
+    } catch (error) {
+      console.error('Excel 파일 파싱 실패:', error);
+      alert('Excel 파일을 읽는 중 오류가 발생했습니다.');
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // 파일 입력 초기화
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ko-KR').format(amount) + '원';
   };
@@ -180,13 +275,33 @@ const RecruitmentCommission: React.FC = () => {
             </h1>
             <p className="text-gray-600 mt-1">섭외 거래처별 수수료를 관리하세요</p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            수수료 등록
-          </button>
+          <div className="flex space-x-3">
+            <button
+              onClick={downloadSampleFile}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              샘플파일
+            </button>
+            <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center">
+              <Upload className="w-4 h-4 mr-2" />
+              {isUploading ? '업로드 중...' : 'Excel 업로드'}
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelUpload}
+                disabled={isUploading}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              수수료 등록
+            </button>
+          </div>
         </div>
       </div>
 

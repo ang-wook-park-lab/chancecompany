@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, Plus, Trash2 } from 'lucide-react';
+import { Upload, Save, Plus, Trash2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Salesperson {
   id: number;
@@ -204,6 +205,69 @@ const SalesDBRegister: React.FC = () => {
     }
   };
 
+  const downloadSampleFile = () => {
+    // 샘플 데이터 생성
+    const sampleData = [
+      {
+        '제안일자': '2026-01-01',
+        '제안자': '홍길동',
+        '영업자ID': '1',
+        '미팅여부': '완료',
+        '업체명': '샘플회사',
+        '대표자': '김대표',
+        '주소': '서울시 강남구',
+        '연락처': '010-1234-5678',
+        '업종': '제조업',
+        '연매출액': '1000000000',
+        '기존거래처': '㈜거래처',
+        '계약상태': '진행중',
+        '해지월': '',
+        '실매출액': '900000000',
+        '계약날짜': '2026-01-10',
+        '계약기장료': '500000',
+        '계약월': '1월',
+        '거래처': 'ABC주식회사',
+        '기타(피드백)': '계약 진행 중',
+        '해피콜내용': '고객 만족'
+      }
+    ];
+
+    // 워크시트 생성
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    
+    // 컬럼 너비 설정
+    const colWidths = [
+      { wch: 12 }, // 제안일자
+      { wch: 10 }, // 제안자
+      { wch: 10 }, // 영업자ID
+      { wch: 10 }, // 미팅여부
+      { wch: 15 }, // 업체명
+      { wch: 10 }, // 대표자
+      { wch: 25 }, // 주소
+      { wch: 15 }, // 연락처
+      { wch: 10 }, // 업종
+      { wch: 15 }, // 연매출액
+      { wch: 15 }, // 기존거래처
+      { wch: 10 }, // 계약상태
+      { wch: 10 }, // 해지월
+      { wch: 15 }, // 실매출액
+      { wch: 12 }, // 계약날짜
+      { wch: 12 }, // 계약기장료
+      { wch: 10 }, // 계약월
+      { wch: 15 }, // 거래처
+      { wch: 20 }, // 기타(피드백)
+      { wch: 15 }  // 해피콜내용
+    ];
+    ws['!cols'] = colWidths;
+
+    // 워크북 생성
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DB등록샘플');
+
+    // 파일 다운로드
+    XLSX.writeFile(wb, 'DB등록_샘플파일.xlsx');
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -248,6 +312,13 @@ const SalesDBRegister: React.FC = () => {
             <p className="text-gray-600 mt-1">고객 정보를 테이블 형태로 입력하세요</p>
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={downloadSampleFile}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              샘플파일 다운로드
+            </button>
             <label className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center">
               <Upload className="w-4 h-4 mr-2" />
               {isUploading ? '업로드 중...' : 'CSV 업로드'}
