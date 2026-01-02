@@ -952,7 +952,7 @@ app.get('/api/sales-db/my-data', (req, res) => {
 app.put('/api/sales-db/:id/salesperson-update', (req, res) => {
   try {
     const { id } = req.params;
-    const { meeting_status, contract_client, client_name, feedback, salesperson_id } = req.body;
+    const { contract_date, meeting_status, contract_client, client_name, feedback, salesperson_id } = req.body;
     
     // 본인 데이터인지 확인
     const record = db.prepare('SELECT salesperson_id FROM sales_db WHERE id = ?').get(id);
@@ -962,10 +962,10 @@ app.put('/api/sales-db/:id/salesperson-update', (req, res) => {
     
     const stmt = db.prepare(`
       UPDATE sales_db 
-      SET meeting_status = ?, contract_client = ?, client_name = ?, feedback = ?, updated_at = CURRENT_TIMESTAMP
+      SET contract_date = ?, meeting_status = ?, contract_client = ?, client_name = ?, feedback = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
-    stmt.run(meeting_status, contract_client, client_name, feedback, id);
+    stmt.run(contract_date, meeting_status, contract_client, client_name, feedback, id);
     
     res.json({ success: true });
   } catch (error) {

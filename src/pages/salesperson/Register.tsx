@@ -105,6 +105,7 @@ const SalespersonMyData: React.FC = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          contract_date: item.contract_date,
           meeting_status: item.meeting_status,
           contract_client: item.contract_client,
           client_name: item.client_name,
@@ -161,7 +162,7 @@ const SalespersonMyData: React.FC = () => {
           {isAdmin ? '영업자별 담당 업체 정보를 확인하고 수정하세요' : '내가 담당하는 업체 정보를 수정하세요'}
         </p>
         <p className="text-sm text-blue-600 mt-2">
-          ※ 미팅여부, 계약기장료, 거래처, 기타(피드백) 필드만 수정 가능합니다.
+          ※ 계약날짜, 미팅여부, 계약기장료, 거래처, 기타(피드백) 필드만 수정 가능합니다.
         </p>
       </div>
 
@@ -213,8 +214,17 @@ const SalespersonMyData: React.FC = () => {
             ) : (
               myData.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                    {item.contract_date || '-'}
+                  <td className="px-4 py-3 bg-blue-50">
+                    {editingId === item.id ? (
+                      <input
+                        type="date"
+                        value={item.contract_date || ''}
+                        onChange={(e) => handleChange(item.id, 'contract_date', e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    ) : (
+                      <span className="text-sm text-gray-900">{item.contract_date || '-'}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
                     {item.company_name}
