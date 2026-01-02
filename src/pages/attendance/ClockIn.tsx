@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Clock, MapPin, CheckCircle, Navigation, AlertCircle, Building2 } from 'lucide-react';
+import { getAddressFromCoords } from '../../utils/geocoding';
 
 declare global {
   interface Window {
@@ -27,6 +28,8 @@ const ClockIn: React.FC = () => {
   const [distanceToCompany, setDistanceToCompany] = useState<number | null>(null);
   const [isWithinRange, setIsWithinRange] = useState<boolean>(false);
   const [companyLocation, setCompanyLocation] = useState(DEFAULT_COMPANY_LOCATION);
+  const [locationAddress, setLocationAddress] = useState<string>('');
+  const [isGeocodingLoading, setIsGeocodingLoading] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
 
@@ -86,25 +89,16 @@ const ClockIn: React.FC = () => {
     return R * c; // 미터 단위
   };
 
-  // GPS 위치 가져오기 및 거리 계산
+  // GPS 위치 가져오기 및 거리 계산 (거리 제한 없이 출근 가능)
   useEffect(() => {
-    // 외근직은 위치와 관계없이 출근 가능
-    if (user?.workType === '외근직') {
-      setIsWithinRange(true);
-      setUserLocation({ lat: companyLocation.lat, lng: companyLocation.lng });
-      setDistanceToCompany(0);
-      setLocationError('외근직은 위치와 관계없이 출근 체크가 가능합니다.');
-      return;
-    }
-
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
           setLocationError(null);
           
-          // 회사와의 거리 계산
+          // 거리 계산 (참고용)
           const distance = calculateDistance(
             latitude, 
             longitude, 
@@ -112,30 +106,43 @@ const ClockIn: React.FC = () => {
             companyLocation.lng
           );
           setDistanceToCompany(distance);
-          setIsWithinRange(distance <= companyLocation.radius);
+          
+          // 거리 제한 없이 항상 출근 가능
+          setIsWithinRange(true);
+
+          // 주소 변환 (Nominatim API 사용)
+          setIsGeocodingLoading(true);
+          try {
+            const address = await getAddressFromCoords(latitude, longitude);
+            setLocationAddress(address);
+            console.log('현재 위치:', address);
+          } catch (error) {
+            console.error('주소 변환 실패:', error);
+            setLocationAddress(`위치: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+          } finally {
+            setIsGeocodingLoading(false);
+          }
         },
         (error) => {
           console.error('위치 정보 가져오기 실패:', error);
           setLocationError('위치 정보를 가져올 수 없습니다. 위치 권한을 확인해주세요.');
-          // 테스트용: 회사 위치로 설정 (실제로는 에러 처리)
-          setUserLocation({ lat: companyLocation.lat, lng: companyLocation.lng });
-          setDistanceToCompany(0);
+          // 위치를 가져올 수 없어도 출근은 가능하도록
           setIsWithinRange(true);
+          setLocationAddress('위치 확인 불가');
         },
         {
           enableHighAccuracy: true,
-          timeout: 5000,
+          timeout: 10000,
           maximumAge: 0
         }
       );
     } else {
       setLocationError('브라우저가 위치 서비스를 지원하지 않습니다.');
-      // 테스트용: 회사 위치로 설정
-      setUserLocation({ lat: companyLocation.lat, lng: companyLocation.lng });
-      setDistanceToCompany(0);
+      // 위치 서비스가 없어도 출근 가능
       setIsWithinRange(true);
+      setLocationAddress('위치 서비스 미지원');
     }
-  }, [companyLocation, user]);
+  }, [companyLocation]);
 
   // Leaflet 지도 초기화
   useEffect(() => {
@@ -244,13 +251,7 @@ const ClockIn: React.FC = () => {
     };
   }, [userLocation, user, isWithinRange, companyLocation]);
 
-  const handleClockIn = () => {
-    // 범위 체크
-    if (!isWithinRange) {
-      alert(`출근 체크는 회사 ${companyLocation.radius}m 이내에서만 가능합니다.\n현재 거리: ${distanceToCompany?.toFixed(0)}m`);
-      return;
-    }
-
+  const handleClockIn = async () => {
     const now = new Date();
     // 24시간 형식으로 저장 (HH:mm:ss)
     const timeString = now.toLocaleTimeString('ko-KR', { 
@@ -273,6 +274,8 @@ const ClockIn: React.FC = () => {
     
     const attendance = {
       clockInTime: timeString,
+      clockInLocation: locationAddress || '위치 확인 불가',
+      clockInCoordinates: userLocation ? JSON.stringify(userLocation) : null,
       clockOutTime: null,
       date: today,
       username: user?.username,
@@ -282,6 +285,31 @@ const ClockIn: React.FC = () => {
     };
     
     localStorage.setItem(storageKey, JSON.stringify(attendance));
+    
+    // 서버에도 저장 (employee_id 필요)
+    try {
+      const response = await fetch('/api/attendance/clock-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: user?.id,
+          date: today,
+          check_in: timeString,
+          check_in_location: locationAddress || '위치 확인 불가',
+          check_in_coordinates: userLocation ? JSON.stringify(userLocation) : null,
+        }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        console.log('출근 기록이 서버에 저장되었습니다.');
+      } else {
+        console.error('서버 저장 실패:', result.message);
+      }
+    } catch (error) {
+      console.error('서버 저장 중 오류:', error);
+      // 서버 저장 실패해도 로컬에는 저장되었으므로 계속 진행
+    }
     
     setClockInTime(displayTime);
     setClockedIn(true);
@@ -313,60 +341,40 @@ const ClockIn: React.FC = () => {
           <p className="text-xs xs:text-sm md:text-base text-gray-600">오늘도 좋은 하루 되세요!</p>
         </div>
 
-        {/* 거리 정보 카드 */}
-        {user?.workType === '외근직' ? (
-          <div className="rounded-lg shadow-lg p-2 xs:p-3 md:p-4 mb-2 xs:mb-3 md:mb-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-            <div className="flex items-center justify-center space-x-2">
-              <CheckCircle className="w-5 h-5" />
-              <div className="text-center">
-                <div className="text-sm xs:text-base font-semibold">외근직 - 어디서나 출근 가능</div>
-                <div className="text-[10px] xs:text-xs opacity-90 mt-0.5">위치 제한 없이 출근 체크할 수 있습니다</div>
-              </div>
+        {/* 현재 위치 정보 카드 */}
+        <div className="rounded-lg shadow-lg p-3 xs:p-4 md:p-4 mb-2 xs:mb-3 md:mb-4 bg-white border border-gray-200">
+          <div className="flex items-start space-x-3">
+            <MapPin className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-gray-700 mb-1">현재 위치</div>
+              {isGeocodingLoading ? (
+                <p className="text-sm text-gray-600">위치 확인 중...</p>
+              ) : locationAddress ? (
+                <p className="text-sm text-gray-700 break-words">{locationAddress}</p>
+              ) : (
+                <p className="text-sm text-gray-500">위치 정보 없음</p>
+              )}
+              {distanceToCompany !== null && (
+                <p className="text-xs text-gray-500 mt-1">
+                  회사로부터 약 {distanceToCompany < 1000 
+                    ? `${Math.round(distanceToCompany)}m` 
+                    : `${(distanceToCompany / 1000).toFixed(2)}km`} 거리
+                </p>
+              )}
             </div>
           </div>
-        ) : distanceToCompany !== null && (
-          <div className={`rounded-lg shadow-lg p-2 xs:p-3 md:p-4 mb-2 xs:mb-3 md:mb-4 ${
-            isWithinRange 
-              ? 'bg-gradient-to-br from-green-500 to-green-600' 
-              : 'bg-gradient-to-br from-red-500 to-red-600'
-          } text-white`}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex items-center space-x-2">
-                <Building2 className="w-4 h-4 xs:w-5 xs:h-5 md:w-6 md:h-6 flex-shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] xs:text-xs opacity-90">회사까지 거리</div>
-                  <div className="text-base xs:text-lg md:text-xl font-bold truncate">
-                    {distanceToCompany < 1000 
-                      ? `${distanceToCompany.toFixed(0)}m` 
-                      : `${(distanceToCompany / 1000).toFixed(2)}km`}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between sm:block sm:text-right flex-shrink-0">
-                <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full ${
-                  isWithinRange 
-                    ? 'bg-white bg-opacity-20' 
-                    : 'bg-white bg-opacity-20'
-                }`}>
-                  {isWithinRange ? (
-                    <>
-                      <CheckCircle className="w-3 h-3 xs:w-3.5 xs:h-3.5" />
-                      <span className="text-[10px] xs:text-xs font-semibold whitespace-nowrap">출근 가능</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-3 h-3 xs:w-3.5 xs:h-3.5" />
-                      <span className="text-[10px] xs:text-xs font-semibold whitespace-nowrap">범위 초과</span>
-                    </>
-                  )}
-                </div>
-                <div className="text-[10px] xs:text-xs mt-0 sm:mt-1 opacity-75 whitespace-nowrap">
-                  허용 반경: {companyLocation.radius}m
-                </div>
-              </div>
+        </div>
+
+        {/* 출근 가능 안내 */}
+        <div className="rounded-lg shadow-lg p-2 xs:p-3 md:p-4 mb-2 xs:mb-3 md:mb-4 bg-gradient-to-br from-green-500 to-green-600 text-white">
+          <div className="flex items-center justify-center space-x-2">
+            <CheckCircle className="w-5 h-5" />
+            <div className="text-center">
+              <div className="text-sm xs:text-base font-semibold">거리 제한 없이 출근 가능</div>
+              <div className="text-[10px] xs:text-xs opacity-90 mt-0.5">출근 위치가 자동으로 기록됩니다</div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Clock Card */}
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-2 xs:p-3 md:p-4 text-white mb-2 xs:mb-3 md:mb-4">
@@ -380,28 +388,16 @@ const ClockIn: React.FC = () => {
           </div>
 
           {!clockedIn ? (
-            <>
-              <button
-                onClick={handleClockIn}
-                disabled={!isWithinRange}
-                className={`w-full font-bold py-1.5 xs:py-2 md:py-2.5 px-2 xs:px-3 md:px-4 rounded-md transition duration-200 shadow-lg flex items-center justify-center space-x-1 ${
-                  isWithinRange
-                    ? 'bg-white text-blue-600 hover:bg-blue-50 cursor-pointer active:scale-95'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5 xs:w-4 xs:h-4 md:w-4 md:h-4 flex-shrink-0" />
-                <span className="text-[11px] xs:text-xs md:text-sm whitespace-nowrap">
-                  {isWithinRange ? '출근 체크' : '출근 불가 (범위 초과)'}
-                </span>
-              </button>
-              {!isWithinRange && (
-                <div className="mt-1.5 xs:mt-2 text-center opacity-90 bg-white bg-opacity-10 rounded-md p-1.5 xs:p-2">
-                  <AlertCircle className="w-2.5 h-2.5 xs:w-3 xs:h-3 inline-block mr-0.5 xs:mr-1" />
-                  <span className="text-[9px] xs:text-[10px]">회사 {companyLocation.radius}m 이내에서만 출근 체크가 가능합니다</span>
-                </div>
-              )}
-            </>
+            <button
+              onClick={handleClockIn}
+              disabled={clockedIn}
+              className="w-full font-bold py-1.5 xs:py-2 md:py-2.5 px-2 xs:px-3 md:px-4 rounded-md transition duration-200 shadow-lg flex items-center justify-center space-x-1 bg-white text-blue-600 hover:bg-blue-50 cursor-pointer active:scale-95"
+            >
+              <Clock className="w-3.5 h-3.5 xs:w-4 xs:h-4 md:w-4 md:h-4 flex-shrink-0" />
+              <span className="text-[11px] xs:text-xs md:text-sm whitespace-nowrap">
+                출근 체크
+              </span>
+            </button>
           ) : (
             <div className="bg-white bg-opacity-20 rounded-md p-1.5 xs:p-2 md:p-3 text-center">
               <CheckCircle className="w-6 h-6 xs:w-7 xs:h-7 md:w-10 md:h-10 mx-auto mb-1 xs:mb-1.5" />

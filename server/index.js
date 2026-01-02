@@ -192,6 +192,35 @@ function initDatabase() {
     console.log('contract_date 필드가 sales_db 테이블에 추가되었습니다.');
   } catch (e) {
     // 이미 컬럼이 존재하면 에러 발생, 무시
+  }
+
+  // 기존 attendance 테이블에 위치 정보 필드 추가 (없으면)
+  try {
+    db.exec('ALTER TABLE attendance ADD COLUMN check_in_location TEXT');
+    console.log('check_in_location 필드가 attendance 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 무시
+  }
+
+  try {
+    db.exec('ALTER TABLE attendance ADD COLUMN check_out_location TEXT');
+    console.log('check_out_location 필드가 attendance 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 무시
+  }
+
+  try {
+    db.exec('ALTER TABLE attendance ADD COLUMN check_in_coordinates TEXT');
+    console.log('check_in_coordinates 필드가 attendance 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 무시
+  }
+
+  try {
+    db.exec('ALTER TABLE attendance ADD COLUMN check_out_coordinates TEXT');
+    console.log('check_out_coordinates 필드가 attendance 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 무시
     if (!e.message.includes('duplicate column')) {
       console.error('contract_date 필드 추가 중 오류:', e.message);
     }
@@ -504,6 +533,68 @@ app.get('/api/attendance', (req, res) => {
     `).all();
     res.json({ success: true, data: attendance });
   } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 출근 기록 (위치 정보 포함)
+app.post('/api/attendance/clock-in', (req, res) => {
+  try {
+    const { employee_id, date, check_in, check_in_location, check_in_coordinates } = req.body;
+    
+    // 기존 기록이 있는지 확인
+    const existing = db.prepare('SELECT id FROM attendance WHERE employee_id = ? AND date = ?')
+      .get(employee_id, date);
+    
+    if (existing) {
+      // 업데이트
+      db.prepare(`
+        UPDATE attendance 
+        SET check_in = ?, check_in_location = ?, check_in_coordinates = ?, status = 'present'
+        WHERE id = ?
+      `).run(check_in, check_in_location, check_in_coordinates, existing.id);
+      
+      res.json({ success: true, id: existing.id, updated: true });
+    } else {
+      // 삽입
+      const result = db.prepare(`
+        INSERT INTO attendance (employee_id, date, check_in, check_in_location, check_in_coordinates, status)
+        VALUES (?, ?, ?, ?, ?, 'present')
+      `).run(employee_id, date, check_in, check_in_location, check_in_coordinates);
+      
+      res.json({ success: true, id: result.lastInsertRowid, updated: false });
+    }
+  } catch (error) {
+    console.error('출근 기록 저장 실패:', error);
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 퇴근 기록 (위치 정보 포함)
+app.post('/api/attendance/clock-out', (req, res) => {
+  try {
+    const { employee_id, date, check_out, check_out_location, check_out_coordinates } = req.body;
+    
+    // 기존 출근 기록 업데이트
+    const result = db.prepare(`
+      UPDATE attendance 
+      SET check_out = ?, check_out_location = ?, check_out_coordinates = ?
+      WHERE employee_id = ? AND date = ?
+    `).run(check_out, check_out_location, check_out_coordinates, employee_id, date);
+    
+    if (result.changes > 0) {
+      res.json({ success: true, updated: true });
+    } else {
+      // 출근 기록이 없으면 새로 생성
+      const insertResult = db.prepare(`
+        INSERT INTO attendance (employee_id, date, check_out, check_out_location, check_out_coordinates, status)
+        VALUES (?, ?, ?, ?, ?, 'present')
+      `).run(employee_id, date, check_out, check_out_location, check_out_coordinates);
+      
+      res.json({ success: true, id: insertResult.lastInsertRowid, updated: false });
+    }
+  } catch (error) {
+    console.error('퇴근 기록 저장 실패:', error);
     res.json({ success: false, message: error.message });
   }
 });
