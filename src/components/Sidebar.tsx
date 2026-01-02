@@ -18,7 +18,11 @@ import {
   LogOut,
   BarChart3,
   ShoppingCart,
-  Search
+  Search,
+  Database,
+  DollarSign,
+  FileSignature,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -45,7 +49,7 @@ interface MenuItem {
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['인사관리', '재고관리', '설정관리']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['인사관리', 'DB관리', '영업자 관리', '계약 관리', '설정관리']);
   const [expandedSubMenus, setExpandedSubMenus] = useState<string[]>(['근태관리', '휴가관리']);
   const [clockInTime, setClockInTime] = useState<string | null>(null);
   const [clockOutTime, setClockOutTime] = useState<string | null>(null);
@@ -112,14 +116,27 @@ const Sidebar: React.FC = () => {
       ],
     },
     {
-      title: '재고관리',
-      icon: <Package className="w-4 h-4" />,
+      title: 'DB관리',
+      icon: <Database className="w-4 h-4" />,
       children: [
-        { title: '재고현황', path: '/inventory/status', icon: <BarChart3 className="w-4 h-4" /> },
-        { title: '판매수', path: '/inventory/sales', icon: <ShoppingCart className="w-4 h-4" /> },
-        { title: '재고조회', path: '/inventory/list', icon: <Search className="w-4 h-4" /> },
-        { title: '재고 등록', path: '/inventory/register', icon: <FileText className="w-4 h-4" /> },
-        { title: '거래처등록', path: '/inventory/clients', icon: <Building className="w-4 h-4" /> },
+        { title: 'DB등록', path: '/sales-db/register', icon: <UserPlus className="w-4 h-4" /> },
+        { title: 'DB검색', path: '/sales-db/search', icon: <Search className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: '영업자 관리',
+      icon: <TrendingUp className="w-4 h-4" />,
+      children: [
+        { title: '영업자 수수료 명세서', path: '/salesperson/commission-statement', icon: <FileText className="w-4 h-4" /> },
+        { title: '영업자 DB 입력', path: '/salesperson/register', icon: <UserPlus className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: '계약 관리',
+      icon: <FileSignature className="w-4 h-4" />,
+      children: [
+        { title: '매출 거래처 수수료', path: '/contract/sales-commission', icon: <DollarSign className="w-4 h-4" /> },
+        { title: '섭외 거래처 수수료', path: '/contract/recruitment-commission', icon: <DollarSign className="w-4 h-4" /> },
       ],
     },
     {

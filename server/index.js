@@ -82,6 +82,66 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     );
+
+    -- 영업자 테이블
+    CREATE TABLE IF NOT EXISTS salespersons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      employee_code TEXT UNIQUE,
+      phone TEXT,
+      email TEXT,
+      commission_rate REAL DEFAULT 0.0,
+      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- DB 관리 테이블 (고객/영업 DB)
+    CREATE TABLE IF NOT EXISTS sales_db (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_name TEXT NOT NULL,
+      customer_company TEXT,
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'pending')),
+      salesperson_id INTEGER,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (salesperson_id) REFERENCES salespersons(id)
+    );
+
+    -- 계약 관리 테이블
+    CREATE TABLE IF NOT EXISTS contracts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contract_type TEXT NOT NULL CHECK(contract_type IN ('sales', 'recruitment')),
+      client_name TEXT NOT NULL,
+      client_company TEXT,
+      salesperson_id INTEGER,
+      contract_amount INTEGER DEFAULT 0,
+      commission_rate REAL DEFAULT 0.0,
+      commission_amount INTEGER DEFAULT 0,
+      contract_date DATE,
+      payment_status TEXT DEFAULT 'pending' CHECK(payment_status IN ('pending', 'paid', 'partial')),
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (salesperson_id) REFERENCES salespersons(id)
+    );
+
+    -- 수수료 명세서 테이블
+    CREATE TABLE IF NOT EXISTS commission_statements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      salesperson_id INTEGER NOT NULL,
+      period_start DATE NOT NULL,
+      period_end DATE NOT NULL,
+      total_sales INTEGER DEFAULT 0,
+      total_commission INTEGER DEFAULT 0,
+      payment_date DATE,
+      payment_status TEXT DEFAULT 'pending' CHECK(payment_status IN ('pending', 'paid')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (salesperson_id) REFERENCES salespersons(id)
+    );
   `);
 
   // Insert default admin user if not exists
@@ -315,6 +375,280 @@ app.get('/api/leaves', (req, res) => {
       ORDER BY l.created_at DESC
     `).all();
     res.json({ success: true, data: leaves });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ========== DB 관리 API ==========
+app.get('/api/sales-db', (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = `
+      SELECT sd.*, s.name as salesperson_name 
+      FROM sales_db sd
+      LEFT JOIN salespersons s ON sd.salesperson_id = s.id
+      ORDER BY sd.created_at DESC
+    `;
+    
+    let salesDB;
+    if (search) {
+      query = `
+        SELECT sd.*, s.name as salesperson_name 
+        FROM sales_db sd
+        LEFT JOIN salespersons s ON sd.salesperson_id = s.id
+        WHERE sd.customer_name LIKE ? OR sd.customer_company LIKE ? OR sd.phone LIKE ?
+        ORDER BY sd.created_at DESC
+      `;
+      const searchParam = `%${search}%`;
+      salesDB = db.prepare(query).all(searchParam, searchParam, searchParam);
+    } else {
+      salesDB = db.prepare(query).all();
+    }
+    
+    res.json({ success: true, data: salesDB });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/sales-db', (req, res) => {
+  try {
+    const { customer_name, customer_company, phone, email, address, salesperson_id, notes } = req.body;
+    const stmt = db.prepare(`
+      INSERT INTO sales_db (customer_name, customer_company, phone, email, address, salesperson_id, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    const info = stmt.run(customer_name, customer_company, phone, email, address, salesperson_id, notes);
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/sales-db/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { customer_name, customer_company, phone, email, address, salesperson_id, status, notes } = req.body;
+    const stmt = db.prepare(`
+      UPDATE sales_db 
+      SET customer_name = ?, customer_company = ?, phone = ?, email = ?, address = ?, 
+          salesperson_id = ?, status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    stmt.run(customer_name, customer_company, phone, email, address, salesperson_id, status, notes, id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/sales-db/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM sales_db WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ========== 영업자 관리 API ==========
+app.get('/api/salespersons', (req, res) => {
+  try {
+    const salespersons = db.prepare('SELECT * FROM salespersons ORDER BY created_at DESC').all();
+    res.json({ success: true, data: salespersons });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/salespersons', (req, res) => {
+  try {
+    const { name, employee_code, phone, email, commission_rate } = req.body;
+    const stmt = db.prepare(`
+      INSERT INTO salespersons (name, employee_code, phone, email, commission_rate)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const info = stmt.run(name, employee_code, phone, email, commission_rate);
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/salespersons/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, employee_code, phone, email, commission_rate, status } = req.body;
+    const stmt = db.prepare(`
+      UPDATE salespersons 
+      SET name = ?, employee_code = ?, phone = ?, email = ?, commission_rate = ?, status = ?
+      WHERE id = ?
+    `);
+    stmt.run(name, employee_code, phone, email, commission_rate, status, id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/salespersons/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM salespersons WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ========== 계약 관리 API ==========
+app.get('/api/contracts', (req, res) => {
+  try {
+    const { type } = req.query;
+    let query = `
+      SELECT c.*, s.name as salesperson_name 
+      FROM contracts c
+      LEFT JOIN salespersons s ON c.salesperson_id = s.id
+    `;
+    
+    if (type) {
+      query += ` WHERE c.contract_type = ?`;
+      const contracts = db.prepare(query + ' ORDER BY c.created_at DESC').all(type);
+      res.json({ success: true, data: contracts });
+    } else {
+      const contracts = db.prepare(query + ' ORDER BY c.created_at DESC').all();
+      res.json({ success: true, data: contracts });
+    }
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/contracts', (req, res) => {
+  try {
+    const { 
+      contract_type, client_name, client_company, salesperson_id, 
+      contract_amount, commission_rate, commission_amount, contract_date, notes 
+    } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO contracts (
+        contract_type, client_name, client_company, salesperson_id, 
+        contract_amount, commission_rate, commission_amount, contract_date, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const info = stmt.run(
+      contract_type, client_name, client_company, salesperson_id,
+      contract_amount, commission_rate, commission_amount, contract_date, notes
+    );
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/contracts/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      contract_type, client_name, client_company, salesperson_id, 
+      contract_amount, commission_rate, commission_amount, contract_date, payment_status, notes 
+    } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE contracts 
+      SET contract_type = ?, client_name = ?, client_company = ?, salesperson_id = ?, 
+          contract_amount = ?, commission_rate = ?, commission_amount = ?, 
+          contract_date = ?, payment_status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(
+      contract_type, client_name, client_company, salesperson_id,
+      contract_amount, commission_rate, commission_amount, contract_date, payment_status, notes, id
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/contracts/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM contracts WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ========== 수수료 명세서 API ==========
+app.get('/api/commission-statements', (req, res) => {
+  try {
+    const { salesperson_id } = req.query;
+    let query = `
+      SELECT cs.*, s.name as salesperson_name 
+      FROM commission_statements cs
+      JOIN salespersons s ON cs.salesperson_id = s.id
+    `;
+    
+    if (salesperson_id) {
+      query += ` WHERE cs.salesperson_id = ?`;
+      const statements = db.prepare(query + ' ORDER BY cs.period_start DESC').all(salesperson_id);
+      res.json({ success: true, data: statements });
+    } else {
+      const statements = db.prepare(query + ' ORDER BY cs.period_start DESC').all();
+      res.json({ success: true, data: statements });
+    }
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/commission-statements', (req, res) => {
+  try {
+    const { salesperson_id, period_start, period_end, total_sales, total_commission } = req.body;
+    const stmt = db.prepare(`
+      INSERT INTO commission_statements (salesperson_id, period_start, period_end, total_sales, total_commission)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const info = stmt.run(salesperson_id, period_start, period_end, total_sales, total_commission);
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/commission-statements/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { salesperson_id, period_start, period_end, total_sales, total_commission, payment_date, payment_status } = req.body;
+    const stmt = db.prepare(`
+      UPDATE commission_statements 
+      SET salesperson_id = ?, period_start = ?, period_end = ?, 
+          total_sales = ?, total_commission = ?, payment_date = ?, payment_status = ?
+      WHERE id = ?
+    `);
+    stmt.run(salesperson_id, period_start, period_end, total_sales, total_commission, payment_date, payment_status, id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/commission-statements/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM commission_statements WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }

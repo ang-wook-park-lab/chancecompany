@@ -4,17 +4,29 @@ import { AuthProvider } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import ProductRegister from './pages/inventory/ProductRegister';
-import ProductList from './pages/inventory/ProductList';
-import InventoryStatus from './pages/inventory/InventoryStatus';
-import InventorySales from './pages/inventory/InventorySales';
-import InventoryRegister from './pages/inventory/InventoryRegister';
-import ClientRegister from './pages/inventory/ClientRegister';
+
+// 인사관리
 import Employees from './pages/hr/Employees';
 import AttendancePage from './pages/hr/Attendance';
 import Leaves from './pages/hr/Leaves';
+
+// DB관리
+import SalesDBRegister from './pages/sales-db/Register';
+import SalesDBSearch from './pages/sales-db/Search';
+
+// 영업자 관리
+import SalespersonCommissionStatement from './pages/salesperson/CommissionStatement';
+import SalespersonRegister from './pages/salesperson/Register';
+
+// 계약 관리
+import SalesCommission from './pages/contract/SalesCommission';
+import RecruitmentCommission from './pages/contract/RecruitmentCommission';
+
+// 설정
 import AccountSettings from './pages/settings/AccountSettings';
 import CompanySettings from './pages/settings/CompanySettings';
+
+// 출퇴근
 import ClockIn from './pages/attendance/ClockIn';
 import ClockOut from './pages/attendance/ClockOut';
 import LeaveRequest from './pages/attendance/LeaveRequest';
@@ -28,19 +40,31 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            
+            {/* 출퇴근 */}
             <Route path="attendance/clock-in" element={<ClockIn />} />
             <Route path="attendance/clock-out" element={<ClockOut />} />
             <Route path="attendance/leave-request" element={<LeaveRequest />} />
-            <Route path="inventory" element={<ProductRegister />} />
-            <Route path="inventory/status" element={<InventoryStatus />} />
-            <Route path="inventory/sales" element={<InventorySales />} />
-            <Route path="inventory/list" element={<ProductList />} />
-            <Route path="inventory/register" element={<InventoryRegister />} />
-            <Route path="inventory/clients" element={<ClientRegister />} />
+            
+            {/* 인사관리 */}
             <Route path="hr/employees" element={<Employees />} />
             <Route path="hr/attendance" element={<AttendancePage />} />
             <Route path="hr/attendance-status" element={<AttendancePage />} />
             <Route path="hr/leaves" element={<Leaves />} />
+            
+            {/* DB관리 */}
+            <Route path="sales-db/register" element={<SalesDBRegister />} />
+            <Route path="sales-db/search" element={<SalesDBSearch />} />
+            
+            {/* 영업자 관리 */}
+            <Route path="salesperson/commission-statement" element={<SalespersonCommissionStatement />} />
+            <Route path="salesperson/register" element={<SalespersonRegister />} />
+            
+            {/* 계약 관리 */}
+            <Route path="contract/sales-commission" element={<SalesCommission />} />
+            <Route path="contract/recruitment-commission" element={<RecruitmentCommission />} />
+            
+            {/* 설정 */}
             <Route path="settings/accounts" element={<AccountSettings />} />
             <Route path="settings/company" element={<CompanySettings />} />
           </Route>
