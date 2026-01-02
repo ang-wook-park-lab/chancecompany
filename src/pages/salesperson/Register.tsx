@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, Save, X } from 'lucide-react';
+import { Edit, Save, X, Users } from 'lucide-react';
 
 interface MyDataItem {
   id: number;
@@ -24,19 +24,50 @@ interface MyDataItem {
   april_type1_date: string;
 }
 
+interface Salesperson {
+  id: number;
+  name: string;
+  username: string;
+}
+
 const SalespersonMyData: React.FC = () => {
   const [myData, setMyData] = useState<MyDataItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [salespersonId, setSalespersonId] = useState<number | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // 로그인한 사용자 정보에서 salesperson_id 가져오기
-    // localStorage에서 사용자 정보 가져오기
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    if (currentUser && currentUser.role === 'salesperson') {
-      setSalespersonId(currentUser.id);
+    // 로그인한 사용자 정보 가져오기
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    setCurrentUser(user);
+    
+    if (user.role === 'admin') {
+      setIsAdmin(true);
+      // 관리자는 영업자 목록을 가져옴
+      fetchSalespersons();
+    } else if (user.role === 'salesperson') {
+      // 영업자는 본인 ID로 설정
+      setSalespersonId(user.id);
     }
   }, []);
+
+  const fetchSalespersons = async () => {
+    try {
+      const response = await fetch('/api/salespersons');
+      const result = await response.json();
+      if (result.success) {
+        setSalespersons(result.data);
+        // 첫 번째 영업자를 기본으로 선택
+        if (result.data.length > 0) {
+          setSalespersonId(result.data[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('영업자 목록 조회 실패:', error);
+    }
+  };
 
   useEffect(() => {
     if (salespersonId) {
@@ -101,11 +132,21 @@ const SalespersonMyData: React.FC = () => {
     ));
   };
 
-  if (!salespersonId) {
+  if (!currentUser || (!isAdmin && currentUser.role !== 'salesperson')) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <p className="text-yellow-800">영업자 권한이 필요합니다.</p>
+          <p className="text-yellow-800">접근 권한이 없습니다.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!salespersonId) {
+    return (
+      <div className="p-6">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+          <p className="text-gray-600">영업자를 선택하세요.</p>
         </div>
       </div>
     );
@@ -115,11 +156,36 @@ const SalespersonMyData: React.FC = () => {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">영업자 DB 입력</h1>
-        <p className="text-gray-600 mt-1">내가 담당하는 업체 정보를 수정하세요</p>
+        <p className="text-gray-600 mt-1">
+          {isAdmin ? '영업자별 담당 업체 정보를 확인하고 수정하세요' : '내가 담당하는 업체 정보를 수정하세요'}
+        </p>
         <p className="text-sm text-blue-600 mt-2">
           ※ 미팅여부, 계약기장료, 거래처, 기타(피드백) 필드만 수정 가능합니다.
         </p>
       </div>
+
+      {/* 관리자용 영업자 선택 드롭다운 */}
+      {isAdmin && salespersons.length > 0 && (
+        <div className="mb-6 bg-white rounded-lg shadow p-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Users className="w-5 h-5 text-gray-600" />
+              <label className="text-sm font-semibold text-gray-700">영업자 선택:</label>
+            </div>
+            <select
+              value={salespersonId || ''}
+              onChange={(e) => setSalespersonId(Number(e.target.value))}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {salespersons.map((sp) => (
+                <option key={sp.id} value={sp.id}>
+                  {sp.name} ({sp.username})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
