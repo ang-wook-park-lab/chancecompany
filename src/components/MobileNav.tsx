@@ -25,7 +25,7 @@ const MobileNav: React.FC = () => {
           {/* 로고 */}
           <div className="flex items-center space-x-2">
             <span className="text-xl">🏢</span>
-            <h1 className="text-sm font-bold text-gray-800">Chance Company ERP</h1>
+            <h1 className="text-sm font-bold text-gray-800">찬스컴퍼니 ERP</h1>
           </div>
 
           {/* 사용자 정보 & 햄버거 메뉴 */}

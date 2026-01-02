@@ -186,7 +186,7 @@ const Sidebar: React.FC = () => {
             <Briefcase className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-gray-800">Chance Company ERP</h1>
+            <h1 className="text-sm font-bold text-gray-800">찬스컴퍼니 ERP</h1>
           </div>
         </div>
       </div>

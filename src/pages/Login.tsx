@@ -30,7 +30,7 @@ const Login: React.FC = () => {
       <div className="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-2">
-            Chance Company ERP
+            찬스컴퍼니 ERP
           </h1>
           <p className="text-gray-500 text-sm">어드민 로그인</p>
         </div>
