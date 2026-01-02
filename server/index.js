@@ -1,3 +1,6 @@
+// Load environment variables
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -8,16 +11,22 @@ const csv = require('csv-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 104857600; // 100MB default
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads/');
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // 대량 JSON 데이터 지원
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// Multer configuration for file uploads
+// Multer configuration for file uploads (대량 업로드 지원)
 const upload = multer({ 
-  dest: path.join(__dirname, 'uploads/'),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+  dest: UPLOAD_DIR,
+  limits: { 
+    fileSize: MAX_FILE_SIZE, // 100MB
+    fieldSize: 50 * 1024 * 1024 // 50MB for form fields
+  }
 });
 
 // Database initialization
@@ -856,6 +865,120 @@ app.post('/api/sales-db/upload-csv', upload.single('file'), (req, res) => {
     .on('error', (error) => {
       fs.unlinkSync(req.file.path);
       res.json({ success: false, message: error.message });
+    });
+});
+
+// 대량 CSV 업로드 (스트리밍 처리 - 수만 개 이상의 행에 최적화)
+app.post('/api/sales-db/upload-csv-stream', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.json({ success: false, message: '파일이 없습니다.' });
+  }
+
+  const errors = [];
+  let processedCount = 0;
+  const BATCH_SIZE = 500; // 500개씩 배치 처리
+  let batch = [];
+  let isPaused = false;
+
+  const processBatch = (rows) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const stmt = db.prepare(`
+          INSERT INTO sales_db (
+            proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
+            address, contact, industry, sales_amount, existing_client, contract_status,
+            termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        const insertMany = db.transaction((rows) => {
+          for (const row of rows) {
+            try {
+              stmt.run(
+                row.proposal_date || row['설의날짜'] || null,
+                row.proposer || row['설의자'] || null,
+                row.salesperson_id || row['영업자'] || null,
+                row.meeting_status || row['미팅여부'] || null,
+                row.company_name || row['연차명'] || null,
+                row.representative || row['대표자'] || null,
+                row.address || row['주소'] || null,
+                row.contact || row['연락처'] || null,
+                row.industry || row['업종'] || null,
+                row.sales_amount || row['매출'] || null,
+                row.existing_client || row['기존거래처'] || null,
+                row.contract_status || row['계약여부'] || null,
+                row.termination_month || row['해임월'] || null,
+                row.actual_sales || row['실제매출'] || null,
+                row.contract_client || row['계약거래처'] || null,
+                row.contract_month || row['계약월'] || null,
+                row.client_name || row['거래처'] || null,
+                row.feedback || row['기타(피드백)'] || null,
+                row.april_type1_date || row['4월1종날짜'] || null
+              );
+            } catch (err) {
+              errors.push({ row: processedCount + rows.indexOf(row) + 1, error: err.message });
+            }
+          }
+        });
+
+        insertMany(rows);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
+  const stream = fs.createReadStream(req.file.path)
+    .pipe(csv())
+    .on('data', async (row) => {
+      batch.push(row);
+      
+      if (batch.length >= BATCH_SIZE && !isPaused) {
+        isPaused = true;
+        stream.pause();
+        
+        const currentBatch = batch.splice(0, BATCH_SIZE);
+        
+        try {
+          await processBatch(currentBatch);
+          processedCount += currentBatch.length;
+          console.log(`Processed ${processedCount} rows...`);
+        } catch (err) {
+          errors.push({ batch: Math.floor(processedCount / BATCH_SIZE), error: err.message });
+        }
+        
+        isPaused = false;
+        stream.resume();
+      }
+    })
+    .on('end', async () => {
+      // 남은 데이터 처리
+      if (batch.length > 0) {
+        try {
+          await processBatch(batch);
+          processedCount += batch.length;
+        } catch (err) {
+          errors.push({ batch: 'final', error: err.message });
+        }
+      }
+      
+      // 임시 파일 삭제
+      fs.unlinkSync(req.file.path);
+      
+      res.json({ 
+        success: true, 
+        message: `${processedCount}개 항목 처리 완료`,
+        processedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        errorCount: errors.length
+      });
+    })
+    .on('error', (err) => {
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.json({ success: false, message: err.message });
     });
 });
 

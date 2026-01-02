@@ -13,10 +13,15 @@ server/erp.db
 *.sqlite
 *.sqlite3
 
+# Upload files
+server/uploads/*
+!server/uploads/.gitkeep
+
 # Environment variables
 .env
 .env.local
 .env.production
+.env.development
 
 # IDE
 .vscode/
