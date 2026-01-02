@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Clock, Calendar, TrendingUp, Users, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -27,6 +28,7 @@ interface LeaveRequest {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [attendanceStats, setAttendanceStats] = useState({
     monthlyWork: {
       current: 0,
@@ -53,11 +55,17 @@ const Dashboard: React.FC = () => {
   const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
+    // 관리자는 근태 현황 페이지로 리다이렉트
+    if (user?.role === 'admin') {
+      navigate('/hr/attendance', { replace: true });
+      return;
+    }
+    
     if (user?.username) {
       loadAttendanceData();
       loadLeaveData();
     }
-  }, [user]);
+  }, [user, navigate]);
 
   const loadAttendanceData = () => {
     if (!user?.username) return;
