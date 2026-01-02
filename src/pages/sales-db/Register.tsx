@@ -89,12 +89,40 @@ const SalesDBRegister: React.FC = () => {
     setRows(newRows);
   };
 
+  // 천 단위 쉼표 포맷팅 함수
+  const formatNumberWithCommas = (value: string): string => {
+    // 숫자만 추출
+    const numbersOnly = value.replace(/[^0-9]/g, '');
+    if (!numbersOnly) return '';
+    // 천 단위 쉼표 추가
+    return Number(numbersOnly).toLocaleString('ko-KR');
+  };
+
+  // 쉼표가 포함된 값을 숫자로 변환
+  const parseNumberWithCommas = (value: string): string => {
+    return value.replace(/,/g, '');
+  };
+
+  // 계약기장료 입력 핸들러
+  const handleContractClientChange = (index: number, value: string) => {
+    const formatted = formatNumberWithCommas(value);
+    const newRows = [...rows];
+    newRows[index] = { ...newRows[index], contract_client: formatted };
+    setRows(newRows);
+  };
+
   const handleSaveAll = async () => {
     try {
+      let successCount = 0;
+      let errorCount = 0;
+
       for (const row of rows) {
-        if (!row.company_name) continue; // 필수 필드 체크
+        if (!row.company_name) {
+          console.log('업체명이 없는 행은 건너뜁니다:', row);
+          continue; // 필수 필드 체크
+        }
         
-        await fetch('/api/sales-db', {
+        const response = await fetch('/api/sales-db', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -102,14 +130,30 @@ const SalesDBRegister: React.FC = () => {
             salesperson_id: row.salesperson_id ? parseInt(row.salesperson_id) : null,
             sales_amount: row.sales_amount ? parseInt(row.sales_amount) : null,
             actual_sales: row.actual_sales ? parseInt(row.actual_sales) : null,
+            contract_client: row.contract_client ? parseNumberWithCommas(row.contract_client) : '',
           }),
         });
+
+        const result = await response.json();
+        console.log('저장 결과:', result);
+
+        if (result.success) {
+          successCount++;
+        } else {
+          errorCount++;
+          console.error('저장 실패:', result.message);
+        }
       }
-      alert('모든 데이터가 저장되었습니다.');
-      setRows([{ ...emptyRow }]);
+
+      if (successCount > 0) {
+        alert(`${successCount}건이 저장되었습니다.${errorCount > 0 ? ` (${errorCount}건 실패)` : ''}`);
+        setRows([{ ...emptyRow }]);
+      } else {
+        alert('저장할 데이터가 없습니다. 업체명은 필수 입력 항목입니다.');
+      }
     } catch (error) {
-      console.error('저장 실패:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      console.error('저장 중 오류 발생:', error);
+      alert('저장 중 오류가 발생했습니다: ' + error.message);
     }
   };
 
@@ -205,7 +249,7 @@ const SalesDBRegister: React.FC = () => {
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약여부</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">해임월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">실제매출</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약거래처</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약기장료</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">거래처</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">기타(피드백)</th>
@@ -346,8 +390,9 @@ const SalesDBRegister: React.FC = () => {
                   <input
                     type="text"
                     value={row.contract_client}
-                    onChange={(e) => handleCellChange(index, 'contract_client', e.target.value)}
-                    className="w-24 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
+                    onChange={(e) => handleContractClientChange(index, e.target.value)}
+                    className="w-32 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500 text-right"
+                    placeholder="0"
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
@@ -376,10 +421,11 @@ const SalesDBRegister: React.FC = () => {
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
-                    type="date"
+                    type="text"
                     value={row.april_type1_date}
                     onChange={(e) => handleCellChange(index, 'april_type1_date', e.target.value)}
                     className="w-32 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
+                    placeholder="한글 입력 가능"
                   />
                 </td>
               </tr>

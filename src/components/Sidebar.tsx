@@ -149,8 +149,21 @@ const Sidebar: React.FC = () => {
     },
   ];
 
+  // 영업자용 메뉴
+  const salespersonMenuItems: MenuItem[] = [
+    {
+      title: '영업자 관리',
+      icon: <TrendingUp className="w-4 h-4" />,
+      children: [
+        { title: '수수료 명세서', path: '/salesperson/commission-statement', icon: <FileText className="w-4 h-4" /> },
+        { title: '내 DB 관리', path: '/salesperson/register', icon: <UserPlus className="w-4 h-4" /> },
+      ],
+    },
+  ];
+
   // 사용자 권한에 따라 메뉴 결정
-  const menuItems = user?.role === 'admin' ? adminMenuItems : [];
+  const menuItems = user?.role === 'admin' ? adminMenuItems : 
+                    user?.role === 'salesperson' ? salespersonMenuItems : [];
 
   const toggleMenu = (title: string) => {
     setExpandedMenus((prev) =>
@@ -173,7 +186,7 @@ const Sidebar: React.FC = () => {
             <Briefcase className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-gray-800">HEUN EUI ERP</h1>
+            <h1 className="text-sm font-bold text-gray-800">Chance Company ERP</h1>
           </div>
         </div>
       </div>
@@ -190,7 +203,9 @@ const Sidebar: React.FC = () => {
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-gray-800 truncate">{user?.name}</p>
               <p className="text-xs text-gray-500">
-                {user?.role === 'admin' ? '관리자' : '직원'}
+                {user?.role === 'admin' ? '관리자' : 
+                 user?.role === 'salesperson' ? '영업자' : 
+                 user?.role === 'recruiter' ? '섭외자' : '직원'}
               </p>
             </div>
           </div>
@@ -205,8 +220,8 @@ const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* 근태 정보 (일반 사용자만) */}
-      {user?.role !== 'admin' && (
+      {/* 근태 정보 (일반 사용자만, 영업자/섭외자 제외) */}
+      {user?.role !== 'admin' && user?.role !== 'salesperson' && user?.role !== 'recruiter' && (
         <div className="p-3 border-b border-gray-200 bg-gray-50">
           <div className="mb-3">
             <div className="flex items-center justify-between mb-2">

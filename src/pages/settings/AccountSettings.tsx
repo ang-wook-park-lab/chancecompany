@@ -36,34 +36,36 @@ const AccountSettings: React.FC = () => {
     password: ''
   });
   
-  // LocalStorage에서 계정 데이터 로드
-  const loadAccountsFromStorage = (): Account[] => {
-    const usersJson = localStorage.getItem('erp_users');
-    if (!usersJson) return [];
-    
-    const users = JSON.parse(usersJson);
-    // User 데이터를 Account 형식으로 변환
-    return users.map((user: any, index: number) => ({
-      id: user.id || (300 + index),
-      username: user.username,
-      name: user.name,
-      employeeCode: user.username === 'admin' ? 'ADMIN001' : `EMP${String(user.id).padStart(3, '0')}`,
-      employmentStatus: '재직' as const,
-      accountStatus: '활성' as const,
-      department: user.username === 'admin' ? '관리부서' : '개발팀',
-      position: user.username === 'admin' ? '관리자' : '사원',
-      role: user.role === 'admin' ? '관리자' : '일반사용자',
-      permissions: '',
-      password: user.password || 'default123'
-    }));
+  const [accounts, setAccounts] = useState<Account[]>([]);
+
+  // API에서 계정 데이터 로드
+  const fetchAccounts = async () => {
+    try {
+      const response = await fetch('/api/users');
+      const result = await response.json();
+      if (result.success) {
+        const accountsData = result.data.map((user: any) => ({
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          employeeCode: user.username === 'admin' ? 'ADMIN001' : `EMP${String(user.id).padStart(3, '0')}`,
+          employmentStatus: '재직' as const,
+          accountStatus: '활성' as const,
+          department: user.username === 'admin' ? '관리부서' : user.role === 'salesperson' ? '영업팀' : '개발팀',
+          position: user.username === 'admin' ? '관리자' : user.role === 'salesperson' ? '영업사원' : '사원',
+          role: user.role === 'admin' ? '관리자' : user.role === 'salesperson' ? '영업자' : user.role === 'recruiter' ? '섭외자' : '일반사용자',
+          permissions: '',
+        }));
+        setAccounts(accountsData);
+      }
+    } catch (error) {
+      console.error('계정 조회 실패:', error);
+    }
   };
 
-  const [accounts, setAccounts] = useState<Account[]>(loadAccountsFromStorage());
-
-  // 컴포넌트 마운트 시 LocalStorage와 동기화
+  // 컴포넌트 마운트 시 API에서 데이터 로드
   useEffect(() => {
-    const syncedAccounts = loadAccountsFromStorage();
-    setAccounts(syncedAccounts);
+    fetchAccounts();
   }, []);
 
   const handleOpenModal = (account?: Account) => {
@@ -100,7 +102,7 @@ const AccountSettings: React.FC = () => {
     setPasswordData({ accountId: 0, newPassword: '', confirmPassword: '' });
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
@@ -113,27 +115,40 @@ const AccountSettings: React.FC = () => {
       return;
     }
     
-    // 비밀번호 업데이트
-    const accountToUpdate = accounts.find(acc => acc.id === passwordData.accountId);
-    setAccounts(accounts.map(acc => 
-      acc.id === passwordData.accountId 
-        ? { ...acc, password: passwordData.newPassword } 
-        : acc
-    ));
-    
-    // LocalStorage의 users도 업데이트
-    if (accountToUpdate) {
-      const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
-      const updatedUsers = users.map((u: any) => 
-        u.username === accountToUpdate.username 
-          ? { ...u, password: passwordData.newPassword } 
-          : u
-      );
-      localStorage.setItem('erp_users', JSON.stringify(updatedUsers));
+    try {
+      const accountToUpdate = accounts.find(acc => acc.id === passwordData.accountId);
+      if (!accountToUpdate) return;
+      
+      const roleMapping: { [key: string]: string } = {
+        '관리자': 'admin',
+        '영업자': 'salesperson',
+        '섭외자': 'recruiter',
+        '일반사용자': 'employee'
+      };
+      
+      const response = await fetch(`/api/users/${passwordData.accountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: accountToUpdate.username,
+          name: accountToUpdate.name,
+          role: roleMapping[accountToUpdate.role] || 'employee',
+          password: passwordData.newPassword,
+        }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        alert('비밀번호가 성공적으로 변경되었습니다.');
+        handleClosePasswordModal();
+        fetchAccounts();
+      } else {
+        alert('비밀번호 변경 실패: ' + result.message);
+      }
+    } catch (error) {
+      console.error('비밀번호 변경 실패:', error);
+      alert('비밀번호 변경 중 오류가 발생했습니다.');
     }
-    
-    alert('비밀번호가 성공적으로 변경되었습니다.');
-    handleClosePasswordModal();
   };
 
   const handleCloseModal = () => {
@@ -153,76 +168,86 @@ const AccountSettings: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isEditing && editingId) {
-      // 수정 - 비밀번호가 비어있으면 기존 비밀번호 유지
-      const existingAccount = accounts.find(acc => acc.id === editingId);
-      const updatedAccount = {
-        ...formData,
-        id: editingId,
-        password: formData.password || existingAccount?.password
-      } as Account;
-      
-      setAccounts(accounts.map(acc => 
-        acc.id === editingId ? updatedAccount : acc
-      ));
-      
-      // LocalStorage의 users도 업데이트
-      const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
-      const updatedUsers = users.map((u: any) => 
-        u.username === existingAccount?.username 
-          ? { 
-              id: u.id, 
-              username: updatedAccount.username, 
-              name: updatedAccount.name, 
-              role: updatedAccount.role === '관리자' ? 'admin' : 'employee',
-              password: updatedAccount.password
-            } 
-          : u
-      );
-      localStorage.setItem('erp_users', JSON.stringify(updatedUsers));
-    } else {
-      // 추가 - 비밀번호 필수
-      if (!formData.password || formData.password.length < 4) {
-        alert('비밀번호는 최소 4자 이상이어야 합니다.');
-        return;
-      }
-      
-      const newAccount: Account = {
-        ...formData,
-        id: Math.max(...accounts.map(a => a.id), 0) + 1,
-      } as Account;
-      setAccounts([...accounts, newAccount]);
-      
-      // LocalStorage의 users에도 추가
-      const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
-      const newUser = {
-        id: Math.max(...users.map((u: any) => u.id), 0) + 1,
-        username: newAccount.username,
-        name: newAccount.name,
-        role: newAccount.role === '관리자' ? 'admin' : 'employee',
-        password: newAccount.password
-      };
-      users.push(newUser);
-      localStorage.setItem('erp_users', JSON.stringify(users));
-    }
+    const roleMapping: { [key: string]: string } = {
+      '관리자': 'admin',
+      '영업자': 'salesperson',
+      '섭외자': 'recruiter',
+      '일반사용자': 'employee'
+    };
     
-    handleCloseModal();
+    try {
+      if (isEditing && editingId) {
+        // 수정
+        const response = await fetch(`/api/users/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: formData.username,
+            name: formData.name,
+            role: roleMapping[formData.role || '일반사용자'] || 'employee',
+            password: formData.password || undefined,
+          }),
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('계정이 수정되었습니다.');
+          handleCloseModal();
+          fetchAccounts();
+        } else {
+          alert('수정 실패: ' + result.message);
+        }
+      } else {
+        // 추가 - 비밀번호 필수
+        if (!formData.password || formData.password.length < 4) {
+          alert('비밀번호는 최소 4자 이상이어야 합니다.');
+          return;
+        }
+        
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: formData.username,
+            name: formData.name,
+            role: roleMapping[formData.role || '일반사용자'] || 'employee',
+            password: formData.password,
+          }),
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('계정이 추가되었습니다.');
+          handleCloseModal();
+          fetchAccounts();
+        } else {
+          alert('추가 실패: ' + result.message);
+        }
+      }
+    } catch (error) {
+      console.error('계정 처리 실패:', error);
+      alert('계정 처리 중 오류가 발생했습니다.');
+    }
   };
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('정말 삭제하시겠습니까?')) {
-      const accountToDelete = accounts.find(acc => acc.id === id);
-      setAccounts(accounts.filter(acc => acc.id !== id));
-      
-      // LocalStorage의 users에서도 삭제
-      if (accountToDelete) {
-        const users = JSON.parse(localStorage.getItem('erp_users') || '[]');
-        const updatedUsers = users.filter((u: any) => u.username !== accountToDelete.username);
-        localStorage.setItem('erp_users', JSON.stringify(updatedUsers));
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('정말 삭제하시겠습니까?')) return;
+    
+    try {
+      const response = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (result.success) {
+        alert('삭제되었습니다.');
+        fetchAccounts();
+      } else {
+        alert('삭제 실패: ' + result.message);
       }
+    } catch (error) {
+      console.error('삭제 실패:', error);
+      alert('삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -522,6 +547,8 @@ const AccountSettings: React.FC = () => {
                   >
                     <option value="일반사용자">일반사용자</option>
                     <option value="관리자">관리자</option>
+                    <option value="영업자">영업자</option>
+                    <option value="섭외자">섭외자</option>
                   </select>
                 </div>
 

@@ -83,6 +83,13 @@ const SalesDBSearch: React.FC = () => {
     return new Intl.NumberFormat('ko-KR').format(amount) + '원';
   };
 
+  const formatNumber = (value: string | number) => {
+    if (!value) return '-';
+    const num = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) : value;
+    if (isNaN(num)) return value;
+    return new Intl.NumberFormat('ko-KR').format(num);
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -167,7 +174,7 @@ const SalesDBSearch: React.FC = () => {
                   실제매출
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  계약거래처
+                  계약기장료
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   계약월
@@ -237,8 +244,8 @@ const SalesDBSearch: React.FC = () => {
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {formatCurrency(item.actual_sales)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {item.contract_client || '-'}
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-right">
+                    {formatNumber(item.contract_client)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                     {item.contract_month || '-'}

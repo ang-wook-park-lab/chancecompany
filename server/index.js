@@ -35,7 +35,7 @@ function initDatabase() {
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'employee', 'salesperson')),
+      role TEXT NOT NULL CHECK(role IN ('admin', 'employee', 'salesperson', 'recruiter')),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -91,17 +91,17 @@ function initDatabase() {
       FOREIGN KEY (employee_id) REFERENCES employees(id)
     );
 
-    -- 영업자 테이블
-    CREATE TABLE IF NOT EXISTS salespersons (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      employee_code TEXT UNIQUE,
-      phone TEXT,
-      email TEXT,
-      commission_rate REAL DEFAULT 0.0,
-      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+    -- 영업자 테이블 (더 이상 사용하지 않음 - users 테이블 사용)
+    -- CREATE TABLE IF NOT EXISTS salespersons (
+    --   id INTEGER PRIMARY KEY AUTOINCREMENT,
+    --   name TEXT NOT NULL,
+    --   employee_code TEXT UNIQUE,
+    --   phone TEXT,
+    --   email TEXT,
+    --   commission_rate REAL DEFAULT 0.0,
+    --   status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
+    --   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    -- );
 
     -- DB 관리 테이블 (고객/영업 DB)
     CREATE TABLE IF NOT EXISTS sales_db (
@@ -124,10 +124,11 @@ function initDatabase() {
       contract_month TEXT,
       client_name TEXT,
       feedback TEXT,
-      april_type1_date DATE,
+      april_type1_date TEXT,
+      commission_rate REAL DEFAULT 500,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (salesperson_id) REFERENCES salespersons(id)
+      FOREIGN KEY (salesperson_id) REFERENCES users(id)
     );
 
     -- 계약 관리 테이블
@@ -145,7 +146,7 @@ function initDatabase() {
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (salesperson_id) REFERENCES salespersons(id)
+      FOREIGN KEY (salesperson_id) REFERENCES users(id)
     );
 
     -- 수수료 명세서 테이블
@@ -174,6 +175,17 @@ function initDatabase() {
     );
   }
 
+  // 기존 sales_db 테이블에 commission_rate 필드 추가 (없으면)
+  try {
+    db.exec('ALTER TABLE sales_db ADD COLUMN commission_rate REAL DEFAULT 500');
+    console.log('commission_rate 필드가 sales_db 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 에러 발생, 무시
+    if (!e.message.includes('duplicate column')) {
+      console.error('commission_rate 필드 추가 중 오류:', e.message);
+    }
+  }
+
   console.log('Database initialized at:', dbPath);
 }
 
@@ -191,6 +203,108 @@ app.post('/api/auth/login', (req, res) => {
     } else {
       res.json({ success: false, message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
     }
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// Users API
+app.get('/api/users', (req, res) => {
+  try {
+    const users = db.prepare('SELECT id, username, name, role, created_at FROM users ORDER BY created_at DESC').all();
+    res.json({ success: true, data: users });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// Employees API
+app.get('/api/employees', (req, res) => {
+  try {
+    const employees = db.prepare(`
+      SELECT 
+        e.id,
+        e.employee_code,
+        e.department,
+        e.position,
+        e.hire_date,
+        e.phone,
+        e.email,
+        u.name,
+        u.username,
+        u.role
+      FROM employees e
+      INNER JOIN users u ON e.user_id = u.id
+      ORDER BY e.created_at DESC
+    `).all();
+    res.json({ success: true, data: employees });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/users', (req, res) => {
+  try {
+    const { username, password, name, role, employee_code, department, position } = req.body;
+    
+    // 사용자 계정 생성
+    const userStmt = db.prepare(`
+      INSERT INTO users (username, password, name, role)
+      VALUES (?, ?, ?, ?)
+    `);
+    const userInfo = userStmt.run(username, password, name, role);
+    
+    // 직원 정보도 함께 생성
+    const employeeStmt = db.prepare(`
+      INSERT INTO employees (user_id, employee_code, department, position, hire_date)
+      VALUES (?, ?, ?, ?, DATE('now'))
+    `);
+    employeeStmt.run(
+      userInfo.lastInsertRowid,
+      employee_code || `EMP${String(userInfo.lastInsertRowid).padStart(3, '0')}`, 
+      department || '부서 미정', 
+      position || '직급 미정'
+    );
+    
+    res.json({ success: true, id: userInfo.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/users/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, password, name, role } = req.body;
+    
+    // 비밀번호가 제공된 경우에만 업데이트
+    if (password) {
+      const stmt = db.prepare(`
+        UPDATE users 
+        SET username = ?, password = ?, name = ?, role = ?
+        WHERE id = ?
+      `);
+      stmt.run(username, password, name, role, id);
+    } else {
+      const stmt = db.prepare(`
+        UPDATE users 
+        SET username = ?, name = ?, role = ?
+        WHERE id = ?
+      `);
+      stmt.run(username, name, role, id);
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    res.json({ success: true });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
@@ -461,11 +575,26 @@ app.post('/api/sales-db', (req, res) => {
 app.put('/api/sales-db/:id', (req, res) => {
   try {
     const { id } = req.params;
+    const body = req.body;
+    
+    // commission_rate만 업데이트하는 경우 (수수료 명세서에서 호출)
+    if (Object.keys(body).length === 1 && body.commission_rate !== undefined) {
+      const stmt = db.prepare(`
+        UPDATE sales_db 
+        SET commission_rate = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `);
+      stmt.run(body.commission_rate, id);
+      res.json({ success: true });
+      return;
+    }
+    
+    // 전체 업데이트 (DB등록에서 호출)
     const { 
       proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
       address, contact, industry, sales_amount, existing_client, contract_status,
-      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date
-    } = req.body;
+      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date, commission_rate
+    } = body;
     
     const stmt = db.prepare(`
       UPDATE sales_db 
@@ -473,14 +602,14 @@ app.put('/api/sales-db/:id', (req, res) => {
           company_name = ?, representative = ?, address = ?, contact = ?, industry = ?,
           sales_amount = ?, existing_client = ?, contract_status = ?, termination_month = ?,
           actual_sales = ?, contract_client = ?, contract_month = ?, client_name = ?,
-          feedback = ?, april_type1_date = ?, updated_at = CURRENT_TIMESTAMP
+          feedback = ?, april_type1_date = ?, commission_rate = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
     
     stmt.run(
       proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
       address, contact, industry, sales_amount, existing_client, contract_status,
-      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date, id
+      termination_month, actual_sales, contract_client, contract_month, client_name, feedback, april_type1_date, commission_rate || 500, id
     );
     res.json({ success: true });
   } catch (error) {
@@ -660,7 +789,12 @@ app.delete('/api/employees/:id', (req, res) => {
 // ========== 영업자 관리 API ==========
 app.get('/api/salespersons', (req, res) => {
   try {
-    const salespersons = db.prepare('SELECT * FROM salespersons ORDER BY created_at DESC').all();
+    const salespersons = db.prepare(`
+      SELECT id, name 
+      FROM users 
+      WHERE role = 'salesperson' 
+      ORDER BY created_at DESC
+    `).all();
     res.json({ success: true, data: salespersons });
   } catch (error) {
     res.json({ success: false, message: error.message });
@@ -702,6 +836,77 @@ app.delete('/api/salespersons/:id', (req, res) => {
     const { id } = req.params;
     const stmt = db.prepare('DELETE FROM salespersons WHERE id = ?');
     stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 영업자별 수수료 상세 조회 (계약여부='Y'인 데이터만)
+app.get('/api/salesperson/:id/commission-details', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const details = db.prepare(`
+      SELECT 
+        id,
+        company_name,
+        contract_client,
+        COALESCE(commission_rate, 500) as commission_rate,
+        CAST(REPLACE(contract_client, ',', '') AS INTEGER) as commission_base,
+        CAST((CAST(REPLACE(contract_client, ',', '') AS INTEGER) * COALESCE(commission_rate, 500) / 100) AS INTEGER) as commission_amount,
+        contract_status
+      FROM sales_db 
+      WHERE salesperson_id = ? AND contract_status IN ('Y', '해임')
+      ORDER BY created_at DESC
+    `).all(id);
+    
+    res.json({ success: true, data: details });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 영업자 본인 데이터만 조회
+app.get('/api/sales-db/my-data', (req, res) => {
+  try {
+    const { salesperson_id } = req.query;
+    
+    if (!salesperson_id) {
+      return res.json({ success: false, message: '영업자 ID가 필요합니다.' });
+    }
+    
+    const myData = db.prepare(`
+      SELECT * FROM sales_db 
+      WHERE salesperson_id = ? 
+      ORDER BY created_at DESC
+    `).all(salesperson_id);
+    
+    res.json({ success: true, data: myData });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 영업자가 특정 필드만 수정
+app.put('/api/sales-db/:id/salesperson-update', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { meeting_status, contract_client, client_name, feedback, salesperson_id } = req.body;
+    
+    // 본인 데이터인지 확인
+    const record = db.prepare('SELECT salesperson_id FROM sales_db WHERE id = ?').get(id);
+    if (!record || record.salesperson_id != salesperson_id) {
+      return res.json({ success: false, message: '권한이 없습니다.' });
+    }
+    
+    const stmt = db.prepare(`
+      UPDATE sales_db 
+      SET meeting_status = ?, contract_client = ?, client_name = ?, feedback = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    stmt.run(meeting_status, contract_client, client_name, feedback, id);
+    
     res.json({ success: true });
   } catch (error) {
     res.json({ success: false, message: error.message });

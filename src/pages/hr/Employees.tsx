@@ -3,7 +3,7 @@ import { UserPlus, Edit, Trash2, Save, X } from 'lucide-react';
 
 interface Employee {
   id: number;
-  user_id: number;
+  user_id?: number;
   username: string;
   name: string;
   role: string;
@@ -11,9 +11,9 @@ interface Employee {
   department: string;
   position: string;
   hire_date: string;
-  phone: string;
-  email: string;
-  created_at: string;
+  phone?: string | null;
+  email?: string | null;
+  created_at?: string;
 }
 
 const Employees: React.FC = () => {
