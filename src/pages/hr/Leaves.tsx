@@ -22,31 +22,84 @@ const Leaves: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   
-  // LocalStorage에서 휴가 신청 목록 로드
+  // 데이터베이스에서 휴가 신청 목록 로드
   useEffect(() => {
     loadLeaveRequests();
   }, []);
 
-  const loadLeaveRequests = () => {
-    const requests = JSON.parse(localStorage.getItem('erp_leave_requests') || '[]');
-    setLeaveRequests(requests);
+  const loadLeaveRequests = async () => {
+    try {
+      const response = await fetch('/api/leaves/all');
+      const result = await response.json();
+      if (result.success && result.data) {
+        // API 데이터를 LeaveRequest 형식으로 변환
+        const formattedData = result.data.map((item: any) => ({
+          id: item.id,
+          employeeName: item.employee_name || '알 수 없음',
+          employeeCode: item.employee_code || '-',
+          leaveType: item.leave_type,
+          startDate: item.start_date,
+          endDate: item.end_date,
+          days: calculateDays(item.start_date, item.end_date, item.leave_type),
+          reason: item.reason,
+          status: item.status,
+          requestDate: item.created_at ? item.created_at.split(' ')[0] : '-',
+          userId: item.user_id,
+          halfDayPeriod: item.reason?.includes('오전') ? '오전' : item.reason?.includes('오후') ? '오후' : undefined,
+        }));
+        setLeaveRequests(formattedData);
+      }
+    } catch (error) {
+      console.error('휴가 목록 조회 실패:', error);
+    }
+  };
+
+  const calculateDays = (startDate: string, endDate: string, leaveType: string): number => {
+    if (leaveType === '반차') return 0.5;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
   };
 
   // 승인/반려 처리
-  const handleApprove = (id: number) => {
-    const updatedRequests = leaveRequests.map(req => 
-      req.id === id ? { ...req, status: 'approved' as const } : req
-    );
-    setLeaveRequests(updatedRequests);
-    localStorage.setItem('erp_leave_requests', JSON.stringify(updatedRequests));
+  const handleApprove = async (id: number) => {
+    try {
+      const response = await fetch(`/api/leaves/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        loadLeaveRequests(); // 목록 새로고침
+      } else {
+        alert('승인 처리 실패: ' + result.message);
+      }
+    } catch (error) {
+      console.error('승인 처리 실패:', error);
+      alert('승인 처리 중 오류가 발생했습니다.');
+    }
   };
 
-  const handleReject = (id: number) => {
-    const updatedRequests = leaveRequests.map(req => 
-      req.id === id ? { ...req, status: 'rejected' as const } : req
-    );
-    setLeaveRequests(updatedRequests);
-    localStorage.setItem('erp_leave_requests', JSON.stringify(updatedRequests));
+  const handleReject = async (id: number) => {
+    try {
+      const response = await fetch(`/api/leaves/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        loadLeaveRequests(); // 목록 새로고침
+      } else {
+        alert('반려 처리 실패: ' + result.message);
+      }
+    } catch (error) {
+      console.error('반려 처리 실패:', error);
+      alert('반려 처리 중 오류가 발생했습니다.');
+    }
   };
 
   const stats = {

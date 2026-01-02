@@ -498,16 +498,52 @@ app.get('/api/attendance', (req, res) => {
 });
 
 // Leaves
+// 승인된 휴가만 조회 (캘린더용)
 app.get('/api/leaves', (req, res) => {
   try {
     const leaves = db.prepare(`
-      SELECT l.*, e.employee_code, u.name as employee_name
+      SELECT l.*, e.employee_code, e.user_id, u.name as employee_name
+      FROM leaves l
+      JOIN employees e ON l.employee_id = e.id
+      JOIN users u ON e.user_id = u.id
+      WHERE l.status = 'approved'
+      ORDER BY l.created_at DESC
+    `).all();
+    res.json({ success: true, data: leaves });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 모든 휴가 조회 (관리 페이지용)
+app.get('/api/leaves/all', (req, res) => {
+  try {
+    const leaves = db.prepare(`
+      SELECT l.*, e.employee_code, e.user_id, u.name as employee_name
       FROM leaves l
       JOIN employees e ON l.employee_id = e.id
       JOIN users u ON e.user_id = u.id
       ORDER BY l.created_at DESC
     `).all();
     res.json({ success: true, data: leaves });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 휴가 상태 업데이트
+app.put('/api/leaves/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    db.prepare(`
+      UPDATE leaves 
+      SET status = ?
+      WHERE id = ?
+    `).run(status, id);
+    
+    res.json({ success: true, message: '휴가 상태가 업데이트되었습니다.' });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
