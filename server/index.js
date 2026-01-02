@@ -12,7 +12,8 @@ const csv = require('csv-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 104857600; // 100MB default
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads/');
+const DATA_DIR = process.env.NODE_ENV === 'production' ? '/app/data' : __dirname;
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(DATA_DIR, 'uploads/');
 
 // Middleware
 app.use(cors());
@@ -33,7 +34,18 @@ const upload = multer({
 let db;
 
 function initDatabase() {
-  const dbPath = path.join(__dirname, 'erp.db');
+  // Use /app/data for Railway Volume, fallback to local path
+  const dataDir = process.env.NODE_ENV === 'production' 
+    ? '/app/data' 
+    : __dirname;
+  
+  // Ensure data directory exists
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  
+  const dbPath = path.join(dataDir, 'erp.db');
+  console.log(`Database path: ${dbPath}`);
   db = new Database(dbPath);
   
   // Create tables
