@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 // 인사관리
 import Employees from './pages/hr/Employees';
 import AttendancePage from './pages/hr/Attendance';
+import LeaveCalendar from './pages/hr/LeaveCalendar';
 import Leaves from './pages/hr/Leaves';
 
 // DB관리
@@ -49,7 +50,7 @@ function App() {
             {/* 인사관리 */}
             <Route path="hr/employees" element={<Employees />} />
             <Route path="hr/attendance" element={<AttendancePage />} />
-            <Route path="hr/attendance-status" element={<AttendancePage />} />
+            <Route path="hr/attendance-status" element={<LeaveCalendar />} />
             <Route path="hr/leaves" element={<Leaves />} />
             
             {/* DB관리 */}

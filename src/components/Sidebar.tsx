@@ -103,7 +103,7 @@ const Sidebar: React.FC = () => {
           icon: <Clock className="w-4 h-4" />,
           children: [
             { title: '근태현황', path: '/hr/attendance', icon: <UserCheck className="w-4 h-4" /> },
-            { title: '근무상태', path: '/hr/attendance-status', icon: <ClipboardList className="w-4 h-4" /> },
+            { title: '휴가캘린더', path: '/hr/attendance-status', icon: <CalendarCheck className="w-4 h-4" /> },
           ],
         },
         {
