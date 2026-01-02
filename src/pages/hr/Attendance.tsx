@@ -1,321 +1,459 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, TrendingUp, CheckCircle, AlertCircle, Coffee } from 'lucide-react';
+import { Clock, Calendar, TrendingUp, CheckCircle, AlertCircle, Coffee, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
+interface Employee {
+  id: number;
+  name: string;
+  employee_code: string;
+  department: string;
+  position: string;
+}
+
 interface AttendanceRecord {
+  id: number;
+  employee_id: number;
   date: string;
-  dayOfWeek: string;
-  checkIn: string;
-  checkOut: string;
-  status: 'present' | 'absent' | 'late' | 'vacation' | 'working';
-  workHours: string;
+  check_in: string;
+  check_out: string;
+  status: string;
+}
+
+interface LeaveRecord {
+  id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  leave_type: string;
+  status: string;
+}
+
+interface CalendarDay {
+  date: Date;
+  isCurrentMonth: boolean;
+  employees: {
+    [key: number]: {
+      status: 'present' | 'absent' | 'late' | 'vacation' | 'pending' | 'weekend';
+      checkIn?: string;
+      checkOut?: string;
+    };
+  };
 }
 
 const Attendance: React.FC = () => {
   const { user } = useAuth();
-  const [currentMonth] = useState('2024년 8월');
-  
-  // 샘플 데이터
-  const workStats = {
-    monthlyWorkHours: 130,
-    totalWorkHours: 168,
-    percentage: 75,
-    remainingHours: 624,
-    overtimeHours: 12,
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [leaves, setLeaves] = useState<LeaveRecord[]>([]);
+  const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
+
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+  const currentMonthName = `${currentYear}년 ${currentMonth + 1}월`;
+
+  // 데이터 가져오기
+  useEffect(() => {
+    fetchEmployees();
+    fetchAttendance();
+    fetchLeaves();
+  }, []);
+
+  // 캘린더 생성
+  useEffect(() => {
+    if (employees.length > 0) {
+      generateCalendar();
+    }
+  }, [currentDate, employees, attendance, leaves]);
+
+  const fetchEmployees = async () => {
+    try {
+      const response = await fetch('/api/employees');
+      const result = await response.json();
+      if (result.success) {
+        setEmployees(result.data);
+      }
+    } catch (error) {
+      console.error('직원 목록 조회 실패:', error);
+    }
   };
 
-  const leaveStats = {
-    totalDays: 10,
-    usedDays: 7,
-    percentage: 70.9,
-    specialLeaves: [
-      { type: '자녀', month: '3월' },
-      { type: '조의', month: '3월' },
-      { type: '휴가', month: '3월' },
-    ],
+  const fetchAttendance = async () => {
+    try {
+      const response = await fetch('/api/attendance');
+      const result = await response.json();
+      if (result.success) {
+        setAttendance(result.data);
+      }
+    } catch (error) {
+      console.error('근태 기록 조회 실패:', error);
+    }
   };
 
-  const yearlyStats = {
-    onTimeRate: 70,
-    onTimeHours: 96.2,
-    totalWorkHours: 312,
+  const fetchLeaves = async () => {
+    try {
+      const response = await fetch('/api/leaves');
+      const result = await response.json();
+      if (result.success) {
+        setLeaves(result.data.filter((leave: LeaveRecord) => leave.status === 'approved'));
+      }
+    } catch (error) {
+      console.error('휴가 기록 조회 실패:', error);
+    }
   };
 
-  const weeklyRecords: AttendanceRecord[] = [
-    { date: '8월 11일', dayOfWeek: '월', checkIn: '09:00', checkOut: '18:40', status: 'present', workHours: '9시간 40분' },
-    { date: '8월 12일', dayOfWeek: '화', checkIn: '', checkOut: '', status: 'vacation', workHours: '휴가 미승인' },
-    { date: '8월 13일', dayOfWeek: '수', checkIn: '08:50', checkOut: '진행중', status: 'working', workHours: '8시간 10분' },
-    { date: '8월 14일', dayOfWeek: '목', checkIn: '', checkOut: '', status: 'absent', workHours: '개인적 일시' },
-    { date: '8월 15일', dayOfWeek: '금', checkIn: '', checkOut: '', status: 'absent', workHours: '개인적 일시' },
-  ];
+  const generateCalendar = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // 이번 달의 첫날과 마지막 날
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // 캘린더 시작일 (이전 달 날짜 포함)
+    const startDay = new Date(firstDay);
+    startDay.setDate(startDay.getDate() - firstDay.getDay());
+    
+    // 캘린더 종료일 (다음 달 날짜 포함)
+    const endDay = new Date(lastDay);
+    endDay.setDate(endDay.getDate() + (6 - lastDay.getDay()));
+    
+    const days: CalendarDay[] = [];
+    const current = new Date(startDay);
+    
+    while (current <= endDay) {
+      const dayInfo: CalendarDay = {
+        date: new Date(current),
+        isCurrentMonth: current.getMonth() === month,
+        employees: {}
+      };
+      
+      // 각 직원의 해당 날짜 상태 확인
+      employees.forEach(employee => {
+        const dateStr = formatDate(current);
+        const isWeekend = current.getDay() === 0 || current.getDay() === 6;
+        
+        // 휴가 확인
+        const onLeave = leaves.some(leave => 
+          employee.id === leave.employee_id &&
+          dateStr >= leave.start_date &&
+          dateStr <= leave.end_date
+        );
+        
+        if (onLeave) {
+          dayInfo.employees[employee.id] = { status: 'vacation' };
+        } else if (isWeekend) {
+          dayInfo.employees[employee.id] = { status: 'weekend' };
+        } else {
+          // 근태 기록 확인
+          const attendanceRecord = attendance.find(
+            att => att.employee_id === employee.id && att.date === dateStr
+          );
+          
+          if (attendanceRecord) {
+            const checkInTime = attendanceRecord.check_in;
+            const isLate = checkInTime && checkInTime > '09:00:00';
+            
+            dayInfo.employees[employee.id] = {
+              status: isLate ? 'late' : 'present',
+              checkIn: checkInTime,
+              checkOut: attendanceRecord.check_out
+            };
+          } else if (current < new Date()) {
+            // 과거 날짜인데 기록이 없으면 결근
+            dayInfo.employees[employee.id] = { status: 'absent' };
+          } else {
+            // 미래 날짜
+            dayInfo.employees[employee.id] = { status: 'pending' };
+          }
+        }
+      });
+      
+      days.push(dayInfo);
+      current.setDate(current.getDate() + 1);
+    }
+    
+    setCalendarDays(days);
+  };
 
-  const recentRequests = [
-    { date: '2024.08.26', title: '출퇴근 시간변경 신청', status: 'pending' },
-    { date: '2024.08.26', title: '출퇴근 시간변경 신청', status: 'pending' },
-    { date: '2024.08.24', title: '정정신청_연장근무', status: 'approved' },
-    { date: '2024.08.24', title: '정정신청_연장근무', status: 'rejected' },
-    { date: '2024.08.24', title: '연장신청_연장근무', status: 'rejected' },
-  ];
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const previousMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
+  };
+
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'present': return 'text-blue-600 bg-blue-50';
-      case 'working': return 'text-green-600 bg-green-50';
-      case 'vacation': return 'text-yellow-600 bg-yellow-50';
-      case 'absent': return 'text-gray-600 bg-gray-50';
-      default: return 'text-gray-600 bg-gray-50';
+      case 'present':
+        return 'bg-blue-500';
+      case 'late':
+        return 'bg-orange-500';
+      case 'absent':
+        return 'bg-red-500';
+      case 'vacation':
+        return 'bg-green-500';
+      case 'weekend':
+        return 'bg-gray-300';
+      default:
+        return 'bg-gray-100';
     }
   };
 
-  const getRequestStatusBadge = (status: string) => {
+  const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending':
-        return <span className="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800">대기중</span>;
-      case 'approved':
-        return <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">승인</span>;
-      case 'rejected':
-        return <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-800">반려</span>;
+      case 'present':
+        return '출근';
+      case 'late':
+        return '지각';
+      case 'absent':
+        return '결근';
+      case 'vacation':
+        return '휴가';
+      case 'weekend':
+        return '휴무';
       default:
-        return null;
+        return '-';
     }
   };
+
+  // 현재 월의 통계 계산
+  const calculateMonthlyStats = () => {
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const monthStartStr = formatDate(monthStart);
+    const monthEndStr = formatDate(monthEnd);
+
+    const monthlyAttendance = attendance.filter(
+      att => att.date >= monthStartStr && att.date <= monthEndStr
+    );
+
+    const presentCount = monthlyAttendance.filter(att => att.check_in).length;
+    const lateCount = monthlyAttendance.filter(att => att.check_in && att.check_in > '09:00:00').length;
+    const totalWorkDays = calendarDays.filter(day => 
+      day.isCurrentMonth && day.date.getDay() !== 0 && day.date.getDay() !== 6 && day.date < new Date()
+    ).length;
+
+    return {
+      presentCount,
+      lateCount,
+      totalWorkDays,
+      attendanceRate: totalWorkDays > 0 ? ((presentCount / (totalWorkDays * employees.length)) * 100).toFixed(1) : 0
+    };
+  };
+
+  const stats = calculateMonthlyStats();
 
   return (
-    <div className="p-6 bg-white min-h-screen">
+    <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">근태 요약</h1>
-        <p className="text-gray-600 mt-2">{currentMonth} 근무 현황을 확인하세요</p>
+        <h1 className="text-3xl font-bold text-gray-800">근태 현황</h1>
+        <p className="text-gray-600 mt-2">{currentMonthName} 전체 직원 근태 및 휴가 현황</p>
       </div>
 
-      {/* Top Stats Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* 근태 현황 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">근태 현황</h2>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 text-sm bg-blue-500 text-white rounded">월간</button>
-              <button className="px-3 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded">주간</button>
+      {/* 통계 카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">총 직원 수</p>
+              <p className="text-2xl font-bold text-gray-800">{employees.length}명</p>
             </div>
-          </div>
-
-          {/* 근무 시간 카드 */}
-          <div className="bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl p-6 text-white mb-4 shadow-lg">
-            <div className="text-sm opacity-90 mb-2">근무 시간</div>
-            <div className="flex items-baseline space-x-2 mb-1">
-              <span className="text-4xl font-bold">{workStats.monthlyWorkHours}시간</span>
-              <span className="text-lg opacity-80">/ {workStats.totalWorkHours}시간</span>
-            </div>
-            <div className="mt-4">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="font-semibold">{workStats.percentage}%</span>
-              </div>
-              <div className="w-full bg-white bg-opacity-30 rounded-full h-2.5 overflow-hidden">
-                <div 
-                  className="bg-white rounded-full h-2.5 shadow-sm transition-all duration-500" 
-                  style={{ width: `${workStats.percentage}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-
-          {/* 상세 정보 */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">최대 근무 시간</span>
-              <span className="text-sm font-semibold">{workStats.remainingHours}시간 남음</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">초과 시간</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-semibold text-orange-600">{workStats.overtimeHours}시간</span>
-                <span className="text-xs text-orange-600">(잔여휴가 이용 권장)</span>
-              </div>
-            </div>
+            <Users className="w-10 h-10 text-blue-500" />
           </div>
         </div>
 
-        {/* 연차 현황 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">연차 현황</h2>
-          
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-600">서비스 연차</span>
-              <span className="text-lg font-bold text-green-600">{leaveStats.percentage}%</span>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">출근 기록</p>
+              <p className="text-2xl font-bold text-green-600">{stats.presentCount}건</p>
             </div>
-            <div className="flex items-center space-x-2 mb-3">
-              <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div 
-                  className="bg-gradient-to-r from-green-400 to-green-500 rounded-full h-3 transition-all duration-500" 
-                  style={{ width: `${leaveStats.percentage}%` }}
-                ></div>
-              </div>
-              <div className="flex items-center space-x-1">
-                <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
-                <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
-              </div>
-            </div>
-            <div className="text-center">
-              <span className="text-3xl font-bold text-gray-800">{leaveStats.totalDays}일</span>
-            </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">특이사항</h3>
-            <div className="flex justify-around">
-              {leaveStats.specialLeaves.map((leave, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-xs text-gray-500">{leave.type}</div>
-                  <div className="text-xs text-gray-500">{leave.month}</div>
-                  <div className="text-sm font-semibold">{Math.floor(leaveStats.usedDays / 3)}월</div>
-                </div>
-              ))}
-            </div>
+            <CheckCircle className="w-10 h-10 text-green-500" />
           </div>
         </div>
 
-        {/* 2024년 근무 상태 및 예측 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">2024년 근무 상태 및 예측</h2>
-          
-          <div className="flex justify-center mb-4">
-            <div className="relative w-40 h-40">
-              <svg className="transform -rotate-90 w-40 h-40">
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="70"
-                  stroke="#e5e7eb"
-                  strokeWidth="15"
-                  fill="none"
-                />
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="70"
-                  stroke="url(#gradient)"
-                  strokeWidth="15"
-                  fill="none"
-                  strokeDasharray={`${2 * Math.PI * 70}`}
-                  strokeDashoffset={`${2 * Math.PI * 70 * (1 - yearlyStats.onTimeRate / 100)}`}
-                  strokeLinecap="round"
-                />
-                <defs>
-                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#06b6d4" />
-                    <stop offset="100%" stopColor="#3b82f6" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-xs text-gray-600">정시 퇴근율</div>
-                <div className="text-2xl font-bold text-blue-600">{yearlyStats.onTimeRate}%</div>
-              </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">지각</p>
+              <p className="text-2xl font-bold text-orange-600">{stats.lateCount}건</p>
             </div>
+            <AlertCircle className="w-10 h-10 text-orange-500" />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-xs text-gray-600 mb-1">정시시간</div>
-              <div className="text-xl font-bold text-gray-800">{yearlyStats.onTimeHours}시간</div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">출근율</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.attendanceRate}%</p>
             </div>
-            <div className="text-center p-3 bg-gray-50 rounded-lg">
-              <div className="text-xs text-gray-600 mb-1">총 근무시간</div>
-              <div className="text-xl font-bold text-gray-800">{yearlyStats.totalWorkHours}시간</div>
-            </div>
+            <TrendingUp className="w-10 h-10 text-blue-500" />
           </div>
         </div>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 이번주 근무 기록 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-800">이번주 근무 기록</h2>
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <span>8월 3주</span>
-              <span>8월 11일 - 8월 15일</span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {weeklyRecords.map((record, index) => (
-              <div 
-                key={index}
-                className={`flex items-center justify-between p-4 rounded-lg border-l-4 ${
-                  record.status === 'present' ? 'border-blue-500 bg-blue-50' :
-                  record.status === 'working' ? 'border-green-500 bg-green-50' :
-                  record.status === 'vacation' ? 'border-yellow-500 bg-yellow-50' :
-                  'border-gray-300 bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="text-center">
-                    <div className="text-xs text-gray-500">{record.date}</div>
-                    <div className="font-semibold text-gray-700">({record.dayOfWeek})</div>
-                  </div>
-                  {record.status === 'present' || record.status === 'working' ? (
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center space-x-1">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <span className="text-sm">근무 {record.workHours}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-600">{record.workHours}</div>
-                  )}
-                </div>
-                {record.checkIn && (
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500">출근: {record.checkIn}</div>
-                    <div className="text-xs text-gray-500">
-                      {record.checkOut === '진행중' ? (
-                        <span className="text-green-600 font-semibold">진행중</span>
-                      ) : (
-                        `퇴근: ${record.checkOut}`
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+      {/* 캘린더 */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        {/* 캘린더 헤더 */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+            <Calendar className="w-6 h-6 mr-2" />
+            근태 캘린더
+          </h2>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={previousMonth}
+              className="p-2 hover:bg-gray-100 rounded-full transition"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={goToToday}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            >
+              오늘
+            </button>
+            <span className="text-lg font-semibold text-gray-700 min-w-[120px] text-center">
+              {currentMonthName}
+            </span>
+            <button
+              onClick={nextMonth}
+              className="p-2 hover:bg-gray-100 rounded-full transition"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* 근무 신청 현황 */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-6">근무 신청 현황</h2>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">날짜</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">신청내역</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">상태</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentRequests.map((request, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">{request.date}</td>
-                    <td className="px-4 py-3 text-sm text-gray-800">{request.title}</td>
-                    <td className="px-4 py-3 text-center">
-                      {getRequestStatusBadge(request.status)}
-                    </td>
-                  </tr>
+        {/* 범례 */}
+        <div className="flex items-center space-x-4 mb-4 text-sm">
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+            <span>출근</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-orange-500 rounded mr-2"></div>
+            <span>지각</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-red-500 rounded mr-2"></div>
+            <span>결근</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+            <span>휴가</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-gray-300 rounded mr-2"></div>
+            <span>휴무</span>
+          </div>
+        </div>
+
+        {/* 캘린더 테이블 */}
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b-2 border-gray-200">
+                <th className="p-3 text-left text-sm font-semibold text-gray-700 bg-gray-50 sticky left-0 z-10 min-w-[150px]">
+                  직원
+                </th>
+                {calendarDays.slice(0, 7).map((day, index) => (
+                  <th
+                    key={index}
+                    className={`p-2 text-center text-xs font-medium min-w-[40px] ${
+                      day.date.getDay() === 0 ? 'text-red-600' :
+                      day.date.getDay() === 6 ? 'text-blue-600' :
+                      'text-gray-600'
+                    }`}
+                  >
+                    {['일', '월', '화', '수', '목', '금', '토'][day.date.getDay()]}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </tr>
+              <tr className="border-b border-gray-200">
+                <th className="p-3 bg-gray-50 sticky left-0 z-10"></th>
+                {calendarDays.map((day, index) => {
+                  const isToday = formatDate(day.date) === formatDate(new Date());
+                  return (
+                    <th
+                      key={index}
+                      className={`p-2 text-center text-xs font-normal ${
+                        !day.isCurrentMonth ? 'text-gray-400' :
+                        isToday ? 'bg-blue-100 text-blue-700 font-bold' :
+                        day.date.getDay() === 0 ? 'text-red-600' :
+                        day.date.getDay() === 6 ? 'text-blue-600' :
+                        'text-gray-700'
+                      }`}
+                    >
+                      {day.date.getDate()}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((employee) => (
+                <tr key={employee.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="p-3 sticky left-0 bg-white z-10 border-r border-gray-200">
+                    <div>
+                      <div className="font-medium text-gray-800">{employee.name}</div>
+                      <div className="text-xs text-gray-500">{employee.department} · {employee.position}</div>
+                    </div>
+                  </td>
+                  {calendarDays.map((day, dayIndex) => {
+                    const employeeStatus = day.employees[employee.id];
+                    const isToday = formatDate(day.date) === formatDate(new Date());
+                    
+                    return (
+                      <td
+                        key={dayIndex}
+                        className={`p-1 text-center ${
+                          isToday ? 'bg-blue-50' : ''
+                        } ${!day.isCurrentMonth ? 'bg-gray-50' : ''}`}
+                      >
+                        {employeeStatus && day.isCurrentMonth && (
+                          <div
+                            className={`w-6 h-6 mx-auto rounded ${getStatusColor(employeeStatus.status)}`}
+                            title={`${employee.name} - ${getStatusText(employeeStatus.status)}${
+                              employeeStatus.checkIn ? `\n출근: ${employeeStatus.checkIn}` : ''
+                            }${
+                              employeeStatus.checkOut ? `\n퇴근: ${employeeStatus.checkOut}` : ''
+                            }`}
+                          ></div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+
+        {employees.length === 0 && (
+          <div className="text-center py-12">
+            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">등록된 직원이 없습니다.</p>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default Attendance;
-
