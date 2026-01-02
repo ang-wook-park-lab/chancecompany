@@ -1,16 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Search as SearchIcon, Edit, Trash2, Phone, Mail, MapPin } from 'lucide-react';
+import { Search as SearchIcon, Trash2, Edit } from 'lucide-react';
 
 interface SalesDB {
   id: number;
-  customer_name: string;
-  customer_company: string;
-  phone: string;
-  email: string;
-  address: string;
-  status: string;
+  proposal_date: string;
+  proposer: string;
   salesperson_name: string;
-  notes: string;
+  meeting_status: string;
+  company_name: string;
+  representative: string;
+  address: string;
+  contact: string;
+  industry: string;
+  sales_amount: number;
+  existing_client: string;
+  contract_status: string;
+  termination_month: string;
+  actual_sales: number;
+  contract_client: string;
+  contract_month: string;
+  client_name: string;
+  feedback: string;
+  april_type1_date: string;
   created_at: string;
 }
 
@@ -27,9 +38,10 @@ const SalesDBSearch: React.FC = () => {
     if (searchTerm) {
       const filtered = salesDB.filter(
         (item) =>
-          item.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.customer_company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.phone?.includes(searchTerm)
+          item.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.representative?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.contact?.includes(searchTerm) ||
+          item.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredData(filtered);
     } else {
@@ -66,22 +78,9 @@ const SalesDBSearch: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      active: 'bg-green-100 text-green-800',
-      inactive: 'bg-gray-100 text-gray-800',
-      pending: 'bg-yellow-100 text-yellow-800',
-    };
-    const labels: Record<string, string> = {
-      active: '활성',
-      inactive: '비활성',
-      pending: '대기',
-    };
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[status] || colors.active}`}>
-        {labels[status] || status}
-      </span>
-    );
+  const formatCurrency = (amount: number) => {
+    if (!amount) return '-';
+    return new Intl.NumberFormat('ko-KR').format(amount) + '원';
   };
 
   return (
@@ -94,95 +93,173 @@ const SalesDBSearch: React.FC = () => {
         <p className="text-gray-600 mt-1">등록된 고객 정보를 검색하세요</p>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="mb-6">
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="고객명, 회사명, 전화번호로 검색..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="relative">
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="회사명, 대표자, 연락처, 거래처명으로 검색..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between">
           <div className="text-sm text-gray-600">
             총 <span className="font-semibold text-blue-600">{filteredData.length}</span>개
           </div>
         </div>
-
-        {filteredData.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            검색 결과가 없습니다.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredData.map((item) => (
-              <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-lg text-gray-800">{item.customer_name}</h3>
-                    {item.customer_company && (
-                      <p className="text-sm text-gray-600">{item.customer_company}</p>
-                    )}
-                  </div>
-                  {getStatusBadge(item.status)}
-                </div>
-
-                <div className="space-y-2 mb-3">
-                  {item.phone && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Phone className="w-4 h-4 mr-2" />
-                      {item.phone}
-                    </div>
-                  )}
-                  {item.email && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="w-4 h-4 mr-2" />
-                      {item.email}
-                    </div>
-                  )}
-                  {item.address && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      {item.address}
-                    </div>
-                  )}
-                </div>
-
-                {item.salesperson_name && (
-                  <div className="mb-3 text-sm">
-                    <span className="text-gray-600">담당: </span>
-                    <span className="font-medium text-gray-800">{item.salesperson_name}</span>
-                  </div>
-                )}
-
-                {item.notes && (
-                  <div className="mb-3 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                    {item.notes}
-                  </div>
-                )}
-
-                <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
-                  <button
-                    className="p-2 text-red-600 hover:bg-red-50 rounded"
-                    onClick={() => handleDelete(item.id)}
-                    title="삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+
+      {filteredData.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
+          검색 결과가 없습니다.
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10">
+                  작업
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  설의날짜
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  설의자
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  영업자
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  미팅여부
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  연차명(회사명)
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  대표자
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  주소
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  연락처
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  업종
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  매출
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  기존거래처
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  계약여부
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  해임월
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  실제매출
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  계약거래처
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  계약월
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  거래처
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  기타(피드백)
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  4월1종날짜
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredData.map((item) => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 whitespace-nowrap text-sm sticky left-0 bg-white z-10">
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="text-red-600 hover:text-red-900"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {item.proposal_date || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.proposer || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.salesperson_name || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.meeting_status || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {item.company_name}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.representative || '-'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {item.address || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.contact || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.industry || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(item.sales_amount)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.existing_client || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.contract_status || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.termination_month || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(item.actual_sales)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.contract_client || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.contract_month || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.client_name || '-'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {item.feedback || '-'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                    {item.april_type1_date || '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
 export default SalesDBSearch;
-
