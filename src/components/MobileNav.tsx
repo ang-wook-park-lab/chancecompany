@@ -160,10 +160,10 @@ const MobileNav: React.FC = () => {
                   </NavLink>
 
                   <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
-                    재고관리
+                    DB관리
                   </div>
                   <NavLink
-                    to="/inventory"
+                    to="/sales-db/register"
                     onClick={closeMenu}
                     className={({ isActive }) =>
                       `flex items-center space-x-3 px-4 py-3 transition-colors ${
@@ -173,10 +173,10 @@ const MobileNav: React.FC = () => {
                       }`
                     }
                   >
-                    <span className="text-sm font-medium">제품 등록</span>
+                    <span className="text-sm font-medium">DB등록</span>
                   </NavLink>
                   <NavLink
-                    to="/inventory/status"
+                    to="/sales-db/search"
                     onClick={closeMenu}
                     className={({ isActive }) =>
                       `flex items-center space-x-3 px-4 py-3 transition-colors ${
@@ -186,10 +186,27 @@ const MobileNav: React.FC = () => {
                       }`
                     }
                   >
-                    <span className="text-sm font-medium">재고 현황</span>
+                    <span className="text-sm font-medium">DB검색</span>
+                  </NavLink>
+
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                    영업자 관리
+                  </div>
+                  <NavLink
+                    to="/salesperson/commission-statement"
+                    onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-3 px-4 py-3 transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`
+                    }
+                  >
+                    <span className="text-sm font-medium">영업자 수수료 명세서</span>
                   </NavLink>
                   <NavLink
-                    to="/inventory/register"
+                    to="/salesperson/register"
                     onClick={closeMenu}
                     className={({ isActive }) =>
                       `flex items-center space-x-3 px-4 py-3 transition-colors ${
@@ -199,7 +216,37 @@ const MobileNav: React.FC = () => {
                       }`
                     }
                   >
-                    <span className="text-sm font-medium">재고 등록</span>
+                    <span className="text-sm font-medium">영업자 DB 입력</span>
+                  </NavLink>
+
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                    계약 관리
+                  </div>
+                  <NavLink
+                    to="/contract/sales-commission"
+                    onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-3 px-4 py-3 transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`
+                    }
+                  >
+                    <span className="text-sm font-medium">매출 거래처 수수료</span>
+                  </NavLink>
+                  <NavLink
+                    to="/contract/recruitment-commission"
+                    onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-3 px-4 py-3 transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`
+                    }
+                  >
+                    <span className="text-sm font-medium">섭외 거래처 수수료</span>
                   </NavLink>
 
                   <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
