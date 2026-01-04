@@ -137,11 +137,13 @@ const Employees: React.FC = () => {
       admin: 'bg-red-100 text-red-800',
       employee: 'bg-blue-100 text-blue-800',
       salesperson: 'bg-green-100 text-green-800',
+      recruiter: 'bg-purple-100 text-purple-800',
     };
     const labels: Record<string, string> = {
       admin: '관리자',
       employee: '일반사용자',
       salesperson: '영업자',
+      recruiter: '섭외자',
     };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[role] || colors.employee}`}>
@@ -246,8 +248,9 @@ const Employees: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="employee">일반사용자</option>
-                  <option value="salesperson">영업자</option>
                   <option value="admin">관리자</option>
+                  <option value="salesperson">영업자</option>
+                  <option value="recruiter">섭외자</option>
                 </select>
               </div>
 

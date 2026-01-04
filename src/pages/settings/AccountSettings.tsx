@@ -31,12 +31,23 @@ const AccountSettings: React.FC = () => {
     accountStatus: '활성',
     department: '',
     position: '',
-    role: '일반사용자',
+    role: 'employee',
     permissions: '',
     password: ''
   });
   
   const [accounts, setAccounts] = useState<Account[]>([]);
+
+  // 권한 표시 헬퍼 함수
+  const getRoleDisplayName = (role: string): string => {
+    const roleMap: { [key: string]: string } = {
+      'employee': '일반사용자',
+      'admin': '관리자',
+      'salesperson': '영업자',
+      'recruiter': '섭외자'
+    };
+    return roleMap[role] || role;
+  };
 
   // API에서 계정 데이터 로드
   const fetchAccounts = async () => {
@@ -398,7 +409,7 @@ const AccountSettings: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800">
-                      {account.role}
+                      {getRoleDisplayName(account.role)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
@@ -545,10 +556,10 @@ const AccountSettings: React.FC = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
-                    <option value="일반사용자">일반사용자</option>
-                    <option value="관리자">관리자</option>
-                    <option value="영업자">영업자</option>
-                    <option value="섭외자">섭외자</option>
+                    <option value="employee">일반사용자</option>
+                    <option value="admin">관리자</option>
+                    <option value="salesperson">영업자</option>
+                    <option value="recruiter">섭외자</option>
                   </select>
                 </div>
 
