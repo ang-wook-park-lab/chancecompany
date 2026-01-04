@@ -11,6 +11,7 @@ interface CommissionDetail {
   id: number;
   company_name: string;
   contract_client: string;
+  contract_date: string;
   commission_rate: number;
   commission_base: number;
   commission_amount: number;
@@ -157,6 +158,9 @@ const SalespersonCommissionStatement: React.FC = () => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                계약날짜
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 업체명
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -176,7 +180,7 @@ const SalespersonCommissionStatement: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {details.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                   {selectedSalesperson ? '계약 완료된 데이터가 없습니다.' : '영업자를 선택하세요.'}
                 </td>
               </tr>
@@ -184,6 +188,9 @@ const SalespersonCommissionStatement: React.FC = () => {
               <>
                 {details.map((detail, index) => (
                   <tr key={index} className={detail.contract_status === '해임' ? 'bg-red-50' : ''}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {detail.contract_date || '-'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {detail.company_name}
                     </td>
@@ -236,7 +243,7 @@ const SalespersonCommissionStatement: React.FC = () => {
                   </tr>
                 ))}
                 <tr className="bg-gray-100 font-bold">
-                  <td colSpan={4} className="px-6 py-4 text-right text-sm text-gray-900">
+                  <td colSpan={5} className="px-6 py-4 text-right text-sm text-gray-900">
                     총 수수료
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-blue-600">

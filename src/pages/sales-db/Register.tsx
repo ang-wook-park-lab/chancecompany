@@ -417,12 +417,15 @@ const SalesDBRegister: React.FC = () => {
                   </select>
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
-                  <input
-                    type="text"
+                  <select
                     value={row.meeting_status}
                     onChange={(e) => handleCellChange(index, 'meeting_status', e.target.value)}
                     className="w-20 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">선택</option>
+                    <option value="Y">Y</option>
+                    <option value="N">N</option>
+                  </select>
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
@@ -482,12 +485,15 @@ const SalesDBRegister: React.FC = () => {
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
-                  <input
-                    type="text"
+                  <select
                     value={row.contract_status}
                     onChange={(e) => handleCellChange(index, 'contract_status', e.target.value)}
                     className="w-20 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">선택</option>
+                    <option value="Y">Y</option>
+                    <option value="N">N</option>
+                  </select>
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input

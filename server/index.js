@@ -1150,13 +1150,14 @@ app.get('/api/salesperson/:id/commission-details', (req, res) => {
         id,
         company_name,
         contract_client,
+        contract_date,
         COALESCE(commission_rate, 500) as commission_rate,
         CAST(REPLACE(contract_client, ',', '') AS INTEGER) as commission_base,
         CAST((CAST(REPLACE(contract_client, ',', '') AS INTEGER) * COALESCE(commission_rate, 500) / 100) AS INTEGER) as commission_amount,
         contract_status
       FROM sales_db 
       WHERE salesperson_id = ? AND contract_status IN ('Y', '해임')
-      ORDER BY created_at DESC
+      ORDER BY contract_date DESC, created_at DESC
     `).all(id);
     
     res.json({ success: true, data: details });
