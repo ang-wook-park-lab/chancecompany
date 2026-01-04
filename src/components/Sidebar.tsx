@@ -158,6 +158,8 @@ const Sidebar: React.FC = () => {
       children: [
         { title: '수수료 명세서', path: '/salesperson/commission-statement', icon: <FileText className="w-4 h-4" /> },
         { title: '내 DB 관리', path: '/salesperson/register', icon: <UserPlus className="w-4 h-4" /> },
+        { title: '일정관리', path: '/salesperson/schedules', icon: <Calendar className="w-4 h-4" /> },
+        { title: '메모관리', path: '/salesperson/memos', icon: <FileText className="w-4 h-4" /> },
       ],
     },
   ];
@@ -170,6 +172,14 @@ const Sidebar: React.FC = () => {
       children: [
         { title: 'DB등록', path: '/sales-db/register', icon: <UserPlus className="w-4 h-4" /> },
         { title: 'DB검색', path: '/sales-db/search', icon: <Search className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: '업무관리',
+      icon: <TrendingUp className="w-4 h-4" />,
+      children: [
+        { title: '일정관리', path: '/salesperson/schedules', icon: <Calendar className="w-4 h-4" /> },
+        { title: '메모관리', path: '/salesperson/memos', icon: <FileText className="w-4 h-4" /> },
       ],
     },
   ];

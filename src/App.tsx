@@ -21,6 +21,8 @@ import SalesDBSearch from './pages/sales-db/Search';
 // 영업자 관리
 import SalespersonCommissionStatement from './pages/salesperson/CommissionStatement';
 import SalespersonRegister from './pages/salesperson/Register';
+import ScheduleManagement from './pages/salesperson/ScheduleManagement';
+import MemoManagement from './pages/salesperson/MemoManagement';
 
 // 계약 관리
 import SalesCommission from './pages/contract/SalesCommission';
@@ -66,6 +68,8 @@ function App() {
             {/* 영업자 관리 */}
             <Route path="salesperson/commission-statement" element={<SalespersonCommissionStatement />} />
             <Route path="salesperson/register" element={<SalespersonRegister />} />
+            <Route path="salesperson/schedules" element={<ScheduleManagement />} />
+            <Route path="salesperson/memos" element={<MemoManagement />} />
             
             {/* 계약 관리 */}
             <Route path="contract/sales-commission" element={<SalesCommission />} />
