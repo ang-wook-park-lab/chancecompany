@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Plus, Edit, Trash2, Download, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useAuth } from '../../context/AuthContext';
 
 interface Salesperson {
   id: number;
@@ -24,6 +25,7 @@ interface Contract {
 }
 
 const SalesCommission: React.FC = () => {
+  const { user } = useAuth();
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +60,13 @@ const SalesCommission: React.FC = () => {
 
   const fetchContracts = async () => {
     try {
-      const response = await fetch('/api/contracts?type=sales');
+      // 영업자인 경우 본인 계약만 조회
+      let url = '/api/contracts?type=sales';
+      if (user?.role === 'salesperson' && user?.id) {
+        url += `&salesperson_id=${user.id}`;
+      }
+      
+      const response = await fetch(url);
       const result = await response.json();
       if (result.success) {
         setContracts(result.data);

@@ -161,9 +161,22 @@ const Sidebar: React.FC = () => {
     },
   ];
 
+  // 섭외자용 메뉴
+  const recruiterMenuItems: MenuItem[] = [
+    {
+      title: 'DB관리',
+      icon: <Database className="w-4 h-4" />,
+      children: [
+        { title: 'DB등록', path: '/sales-db/register', icon: <UserPlus className="w-4 h-4" /> },
+        { title: 'DB검색', path: '/sales-db/search', icon: <Search className="w-4 h-4" /> },
+      ],
+    },
+  ];
+
   // 사용자 권한에 따라 메뉴 결정
   const menuItems = user?.role === 'admin' ? adminMenuItems : 
-                    user?.role === 'salesperson' ? salespersonMenuItems : [];
+                    user?.role === 'salesperson' ? salespersonMenuItems :
+                    user?.role === 'recruiter' ? recruiterMenuItems : [];
 
   const toggleMenu = (title: string) => {
     setExpandedMenus((prev) =>
@@ -274,8 +287,8 @@ const Sidebar: React.FC = () => {
         </div>
       )}
 
-      {/* 인사 종목 메뉴 (일반 사용자만) */}
-      {user?.role !== 'admin' && (
+      {/* 인사 종목 메뉴 (일반 사용자(employee)만) */}
+      {user?.role === 'employee' && (
         <div className="p-3 border-b border-gray-200">
           <NavLink
             to="/attendance/clock-in"

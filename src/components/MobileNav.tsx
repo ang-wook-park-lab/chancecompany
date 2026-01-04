@@ -65,8 +65,8 @@ const MobileNav: React.FC = () => {
                 <span className="text-sm font-medium">대시보드</span>
               </NavLink>
 
-              {/* 일반 사용자 메뉴 */}
-              {user?.role !== 'admin' && (
+              {/* 일반 사용자(employee) 메뉴만 */}
+              {user?.role === 'employee' && (
                 <>
                   <NavLink
                     to="/attendance/clock-in"
@@ -109,6 +109,41 @@ const MobileNav: React.FC = () => {
                   >
                     <span className="text-lg">✈️</span>
                     <span className="text-sm font-medium">휴가신청</span>
+                  </NavLink>
+                </>
+              )}
+
+              {/* 섭외자 메뉴 */}
+              {user?.role === 'recruiter' && (
+                <>
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                    DB관리
+                  </div>
+                  <NavLink
+                    to="/sales-db/register"
+                    onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-3 px-4 py-3 transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`
+                    }
+                  >
+                    <span className="text-sm font-medium">DB등록</span>
+                  </NavLink>
+                  <NavLink
+                    to="/sales-db/search"
+                    onClick={closeMenu}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-3 px-4 py-3 transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600 border-l-4 border-blue-600'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`
+                    }
+                  >
+                    <span className="text-sm font-medium">DB검색</span>
                   </NavLink>
                 </>
               )}

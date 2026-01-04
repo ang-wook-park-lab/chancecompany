@@ -1214,21 +1214,34 @@ app.put('/api/sales-db/:id/salesperson-update', (req, res) => {
 // ========== 계약 관리 API ==========
 app.get('/api/contracts', (req, res) => {
   try {
-    const { type } = req.query;
+    const { type, salesperson_id } = req.query;
     let query = `
       SELECT c.*, s.name as salesperson_name 
       FROM contracts c
       LEFT JOIN salespersons s ON c.salesperson_id = s.id
     `;
     
+    const conditions = [];
+    const params = [];
+    
+    // 계약 유형 필터링
     if (type) {
-      query += ` WHERE c.contract_type = ?`;
-      const contracts = db.prepare(query + ' ORDER BY c.created_at DESC').all(type);
-      res.json({ success: true, data: contracts });
-    } else {
-      const contracts = db.prepare(query + ' ORDER BY c.created_at DESC').all();
-      res.json({ success: true, data: contracts });
+      conditions.push('c.contract_type = ?');
+      params.push(type);
     }
+    
+    // 영업자 필터링 (영업자가 본인 계약만 보기)
+    if (salesperson_id) {
+      conditions.push('c.salesperson_id = ?');
+      params.push(salesperson_id);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    const contracts = db.prepare(query + ' ORDER BY c.created_at DESC').all(...params);
+    res.json({ success: true, data: contracts });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
