@@ -183,6 +183,34 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (salesperson_id) REFERENCES salespersons(id)
     );
+
+    -- 일정 관리 테이블 (영업자/관리자)
+    CREATE TABLE IF NOT EXISTS schedules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      schedule_date DATE NOT NULL,
+      schedule_time TIME,
+      client_name TEXT,
+      location TEXT,
+      notes TEXT,
+      status TEXT DEFAULT 'scheduled' CHECK(status IN ('scheduled', 'completed', 'cancelled')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    -- 메모 테이블 (영업자/관리자)
+    CREATE TABLE IF NOT EXISTS memos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      category TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
 
   // Insert default admin user if not exists
@@ -1367,6 +1395,158 @@ app.delete('/api/commission-statements/:id', (req, res) => {
   try {
     const { id } = req.params;
     const stmt = db.prepare('DELETE FROM commission_statements WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ========== 일정 관리 API (Schedules) ==========
+// 일정 조회 (본인 것만 조회, 관리자는 모든 일정 조회 가능)
+app.get('/api/schedules', (req, res) => {
+  try {
+    const { user_id } = req.query;
+    
+    let query = `
+      SELECT s.*, u.name as user_name 
+      FROM schedules s
+      LEFT JOIN users u ON s.user_id = u.id
+    `;
+    const params = [];
+
+    if (user_id) {
+      query += ` WHERE s.user_id = ?`;
+      params.push(user_id);
+    }
+    
+    query += ` ORDER BY s.schedule_date DESC, s.schedule_time DESC`;
+    
+    const schedules = db.prepare(query).all(...params);
+    res.json({ success: true, data: schedules });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 일정 추가
+app.post('/api/schedules', (req, res) => {
+  try {
+    const { user_id, title, schedule_date, schedule_time, client_name, location, notes, status } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO schedules (user_id, title, schedule_date, schedule_time, client_name, location, notes, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(user_id, title, schedule_date, schedule_time, client_name, location, notes, status || 'scheduled');
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 일정 수정
+app.put('/api/schedules/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, schedule_date, schedule_time, client_name, location, notes, status } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE schedules 
+      SET title = ?, schedule_date = ?, schedule_time = ?, 
+          client_name = ?, location = ?, notes = ?, status = ?, 
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(title, schedule_date, schedule_time, client_name, location, notes, status, id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 일정 삭제
+app.delete('/api/schedules/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM schedules WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ========== 메모 API (Memos) ==========
+// 메모 조회 (본인 것만 조회, 관리자는 모든 메모 조회 가능)
+app.get('/api/memos', (req, res) => {
+  try {
+    const { user_id } = req.query;
+    
+    let query = `
+      SELECT m.*, u.name as user_name 
+      FROM memos m
+      LEFT JOIN users u ON m.user_id = u.id
+    `;
+    const params = [];
+
+    if (user_id) {
+      query += ` WHERE m.user_id = ?`;
+      params.push(user_id);
+    }
+    
+    query += ` ORDER BY m.created_at DESC`;
+    
+    const memos = db.prepare(query).all(...params);
+    res.json({ success: true, data: memos });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 메모 추가
+app.post('/api/memos', (req, res) => {
+  try {
+    const { user_id, title, content, category } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO memos (user_id, title, content, category)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(user_id, title, content, category);
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 메모 수정
+app.put('/api/memos/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, category } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE memos 
+      SET title = ?, content = ?, category = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(title, content, category, id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 메모 삭제
+app.delete('/api/memos/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM memos WHERE id = ?');
     stmt.run(id);
     res.json({ success: true });
   } catch (error) {

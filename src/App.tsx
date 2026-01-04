@@ -11,6 +11,9 @@ import AttendancePage from './pages/hr/Attendance';
 import LeaveCalendar from './pages/hr/LeaveCalendar';
 import Leaves from './pages/hr/Leaves';
 
+// 관리자 - 영업자 일정/메모 관리
+import SalespersonSchedules from './pages/admin/SalespersonSchedules';
+
 // DB관리
 import SalesDBRegister from './pages/sales-db/Register';
 import SalesDBSearch from './pages/sales-db/Search';
@@ -52,6 +55,9 @@ function App() {
             <Route path="hr/attendance" element={<AttendancePage />} />
             <Route path="hr/attendance-status" element={<LeaveCalendar />} />
             <Route path="hr/leaves" element={<Leaves />} />
+            
+            {/* 관리자 - 영업자 일정/메모 */}
+            <Route path="admin/salesperson-schedules" element={<SalespersonSchedules />} />
             
             {/* DB관리 */}
             <Route path="sales-db/register" element={<SalesDBRegister />} />

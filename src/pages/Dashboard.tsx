@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Calendar, TrendingUp, Users, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import SalespersonDashboard from './SalespersonDashboard';
 
 interface AttendanceRecord {
   clockInTime: string | null;
@@ -29,6 +30,12 @@ interface LeaveRequest {
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // 영업자 또는 섭외자는 영업자 대시보드 표시
+  if (user?.role === 'salesperson' || user?.role === 'recruiter') {
+    return <SalespersonDashboard />;
+  }
+  
   const [attendanceStats, setAttendanceStats] = useState({
     monthlyWork: {
       current: 0,
