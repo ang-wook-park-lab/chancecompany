@@ -95,7 +95,7 @@ const AccountSettings: React.FC = () => {
         accountStatus: '활성',
         department: '',
         position: '',
-        role: '일반사용자',
+        role: 'employee',
         permissions: '',
         password: ''
       });
@@ -130,11 +130,20 @@ const AccountSettings: React.FC = () => {
       const accountToUpdate = accounts.find(acc => acc.id === passwordData.accountId);
       if (!accountToUpdate) return;
       
+      // 한글 → 영어 변환
       const roleMapping: { [key: string]: string } = {
         '관리자': 'admin',
         '영업자': 'salesperson',
         '섭외자': 'recruiter',
         '일반사용자': 'employee'
+      };
+      
+      // 이미 영어면 그대로, 한글이면 변환
+      const normalizeRole = (role: string): string => {
+        if (['admin', 'employee', 'salesperson', 'recruiter'].includes(role)) {
+          return role;
+        }
+        return roleMapping[role] || 'employee';
       };
       
       const response = await fetch(`/api/users/${passwordData.accountId}`, {
@@ -143,7 +152,7 @@ const AccountSettings: React.FC = () => {
         body: JSON.stringify({
           username: accountToUpdate.username,
           name: accountToUpdate.name,
-          role: roleMapping[accountToUpdate.role] || 'employee',
+          role: normalizeRole(accountToUpdate.role),
           password: passwordData.newPassword,
         }),
       });
@@ -174,7 +183,7 @@ const AccountSettings: React.FC = () => {
       accountStatus: '활성',
       department: '',
       position: '',
-      role: '일반사용자',
+      role: 'employee',
       permissions: ''
     });
   };
@@ -182,11 +191,23 @@ const AccountSettings: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // 한글 → 영어 변환 (하위 호환성을 위해 유지)
     const roleMapping: { [key: string]: string } = {
       '관리자': 'admin',
       '영업자': 'salesperson',
       '섭외자': 'recruiter',
       '일반사용자': 'employee'
+    };
+    
+    // 이미 영어면 그대로, 한글이면 변환
+    const normalizeRole = (role: string | undefined): string => {
+      if (!role) return 'employee';
+      // 이미 영어 role 값이면 그대로 반환
+      if (['admin', 'employee', 'salesperson', 'recruiter'].includes(role)) {
+        return role;
+      }
+      // 한글이면 변환
+      return roleMapping[role] || 'employee';
     };
     
     try {
@@ -198,7 +219,7 @@ const AccountSettings: React.FC = () => {
           body: JSON.stringify({
             username: formData.username,
             name: formData.name,
-            role: roleMapping[formData.role || '일반사용자'] || 'employee',
+            role: normalizeRole(formData.role),
             password: formData.password || undefined,
           }),
         });
@@ -224,7 +245,7 @@ const AccountSettings: React.FC = () => {
           body: JSON.stringify({
             username: formData.username,
             name: formData.name,
-            role: roleMapping[formData.role || '일반사용자'] || 'employee',
+            role: normalizeRole(formData.role),
             password: formData.password,
           }),
         });
