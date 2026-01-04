@@ -2,7 +2,7 @@ export interface User {
   id: number;
   username: string;
   name: string;
-  role: 'admin' | 'employee';
+  role: 'admin' | 'employee' | 'salesperson' | 'recruiter';
   password?: string;
   workType?: '사무직' | '생산직' | '외근직';
   workLocation?: string;
