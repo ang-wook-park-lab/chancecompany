@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Plus, DollarSign, Edit, Save } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface Salesperson {
   id: number;
@@ -17,6 +18,7 @@ interface CommissionDetail {
 }
 
 const SalespersonCommissionStatement: React.FC = () => {
+  const { user } = useAuth();
   const [salespersons, setSalespersons] = useState<Salesperson[]>([]);
   const [selectedSalesperson, setSelectedSalesperson] = useState<string>('');
   const [details, setDetails] = useState<CommissionDetail[]>([]);
@@ -39,7 +41,12 @@ const SalespersonCommissionStatement: React.FC = () => {
       const result = await response.json();
       if (result.success) {
         setSalespersons(result.data);
-        if (result.data.length > 0) {
+        
+        // 영업자로 로그인한 경우, 본인 ID로 자동 설정
+        if (user?.role === 'salesperson' && user?.id) {
+          setSelectedSalesperson(user.id.toString());
+        } else if (result.data.length > 0) {
+          // 관리자인 경우 첫 번째 영업자 선택
           setSelectedSalesperson(result.data[0].id.toString());
         }
       }
@@ -111,24 +118,38 @@ const SalespersonCommissionStatement: React.FC = () => {
         <p className="text-gray-600 mt-1">계약 완료된 업체별 수수료를 확인하세요 (계약여부='Y'인 항목만 표시)</p>
       </div>
 
-      {/* 영업자 선택 */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center space-x-4">
-          <label className="text-sm font-medium text-gray-700">영업자 선택:</label>
-          <select
-            value={selectedSalesperson}
-            onChange={(e) => setSelectedSalesperson(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">선택하세요</option>
-            {salespersons.map((sp) => (
-              <option key={sp.id} value={sp.id}>
-                {sp.name}
-              </option>
-            ))}
-          </select>
+      {/* 영업자 선택 (관리자만 표시) */}
+      {user?.role === 'admin' && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex items-center space-x-4">
+            <label className="text-sm font-medium text-gray-700">영업자 선택:</label>
+            <select
+              value={selectedSalesperson}
+              onChange={(e) => setSelectedSalesperson(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">선택하세요</option>
+              {salespersons.map((sp) => (
+                <option key={sp.id} value={sp.id}>
+                  {sp.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* 영업자 본인 정보 표시 */}
+      {user?.role === 'salesperson' && (
+        <div className="bg-blue-50 rounded-lg shadow p-4 mb-6">
+          <div className="flex items-center space-x-2">
+            <DollarSign className="w-5 h-5 text-blue-600" />
+            <span className="text-sm font-medium text-gray-700">영업자:</span>
+            <span className="text-sm font-bold text-blue-600">{user.name}</span>
+            <span className="text-xs text-gray-500 ml-2">(본인 수수료 명세서)</span>
+          </div>
+        </div>
+      )}
 
       {/* 수수료 상세 테이블 */}
       <div className="bg-white rounded-lg shadow overflow-x-auto">
