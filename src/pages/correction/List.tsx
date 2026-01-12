@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Search, Plus, X, Save, Edit } from 'lucide-react';
+import { FileText, Search, Plus, X, Save } from 'lucide-react';
 import { CorrectionRequest } from '../../types';
 
 const CorrectionList: React.FC = () => {
@@ -23,7 +23,7 @@ const CorrectionList: React.FC = () => {
     handler: '',
     is_first_startup: false,
     status: '대기',
-    progress_status: '',
+    progress_status: 'N',
     refund_amount: 0,
     document_delivery: '',
     feedback: ''
@@ -76,7 +76,7 @@ const CorrectionList: React.FC = () => {
       handler: '',
       is_first_startup: false,
       status: '대기',
-      progress_status: '',
+      progress_status: 'N',
       refund_amount: 0,
       document_delivery: '',
       feedback: ''
@@ -97,6 +97,11 @@ const CorrectionList: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!formData.company_name || !formData.representative || !formData.handler) {
+      alert('필수 항목을 모두 입력해주세요.');
+      return;
+    }
+
     try {
       const url = selectedRequest 
         ? `/api/correction-requests/${selectedRequest.id}`
@@ -163,145 +168,143 @@ const CorrectionList: React.FC = () => {
 
   const Modal = ({ isDetail = false }: { isDetail?: boolean }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">
-            {isDetail ? '경정청구 상세' : '새 요청 등록'}
+      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-2">
+            {isDetail ? '경정청구 상세' : '경정청구 요청 등록'}
           </h2>
-          <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">
-            <X className="w-6 h-6" />
-          </button>
+          <p className="text-sm text-gray-600">경정청구 검토 요청을 등록합니다</p>
         </div>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                영업담당자 (계정주) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.handler || ''}
+                onChange={(e) => setFormData({ ...formData, handler: e.target.value })}
+                className="w-full border border-gray-300 rounded px-4 py-2.5"
+                placeholder="관리자"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 업체명 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.company_name}
                 onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                placeholder="업체명 입력"
+                className="w-full border border-gray-300 rounded px-4 py-2.5"
+                placeholder="업체명을 입력하세요"
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">대표자</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                대표자 <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 value={formData.representative || ''}
                 onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                placeholder="대표자명 입력"
+                className="w-full border border-gray-300 rounded px-4 py-2.5"
+                placeholder="대표자명을 입력하세요"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">담당자</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">특수관계자</label>
               <input
                 type="text"
-                value={formData.handler || ''}
-                onChange={(e) => setFormData({ ...formData, handler: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                placeholder="담당자명 입력"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">최초창업</label>
-              <select
-                value={formData.is_first_startup ? 'Y' : 'N'}
-                onChange={(e) => setFormData({ ...formData, is_first_startup: e.target.value === 'Y' })}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="N">아니오</option>
-                <option value="Y">예</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">상태</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                className="w-full border rounded px-3 py-2"
-              >
-                <option value="대기">대기</option>
-                <option value="환급가능">환급가능</option>
-                <option value="환급불가">환급불가</option>
-                <option value="자료수집X">자료수집X</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">진행상태</label>
-              <input
-                type="text"
-                value={formData.progress_status || ''}
-                onChange={(e) => setFormData({ ...formData, progress_status: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                placeholder="진행상태 입력"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">환급금액</label>
-              <input
-                type="number"
-                value={formData.refund_amount}
-                onChange={(e) => setFormData({ ...formData, refund_amount: parseInt(e.target.value) || 0 })}
-                className="w-full border rounded px-3 py-2"
-                placeholder="환급금액 입력"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">서류전달일</label>
-              <input
-                type="date"
                 value={formData.document_delivery || ''}
                 onChange={(e) => setFormData({ ...formData, document_delivery: e.target.value })}
-                className="w-full border rounded px-3 py-2"
+                className="w-full border border-gray-300 rounded px-4 py-2.5"
+                placeholder="특수관계자 정보를 입력하세요"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                최초창업여부 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.is_first_startup ? 'O' : 'X'}
+                onChange={(e) => setFormData({ ...formData, is_first_startup: e.target.value === 'O' })}
+                className="w-full border border-gray-300 rounded px-4 py-2.5"
+              >
+                <option value="X">X (재창업)</option>
+                <option value="O">O (최초창업)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                경정진행여부 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.progress_status || 'N'}
+                onChange={(e) => setFormData({ ...formData, progress_status: e.target.value })}
+                className="w-full border border-gray-300 rounded px-4 py-2.5"
+              >
+                <option value="N">N (미진행)</option>
+                <option value="Y">Y (진행중)</option>
+              </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">피드백</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">추가사항</label>
             <textarea
               value={formData.feedback || ''}
               onChange={(e) => setFormData({ ...formData, feedback: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              rows={3}
-              placeholder="피드백 내용 입력"
+              className="w-full border border-gray-300 rounded px-4 py-2.5"
+              rows={5}
+              placeholder="추가사항을 상세히 입력하세요"
             />
+          </div>
+
+          {/* 안내사항 */}
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-5 mt-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">💡</span>
+              <div className="flex-1">
+                <h3 className="font-bold text-blue-900 mb-3">안내사항</h3>
+                <ul className="text-sm text-blue-800 space-y-2 leading-relaxed">
+                  <li>• 경정청구 요청을 등록하면 검토담당자가 확인한 검토 결과를 알려드립니다.</li>
+                  <li>• 검토 결과는 '환급가능', '환급불가' 중 하나로 표시됩니다.</li>
+                  <li>• '자료수집X'로 표시된 건은 실적 집계에서 제외됩니다.</li>
+                  <li>• 환급가능으로 확정되면 시스템에서 자동으로 공지가 발송됩니다.</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-between mt-6">
+        <div className="flex justify-between mt-8 pt-6 border-t">
           {isDetail && (
             <button
               onClick={() => handleDelete(selectedRequest!.id!)}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
             >
               삭제
             </button>
           )}
-          <div className={`flex gap-2 ${!isDetail ? 'ml-auto' : ''}`}>
+          <div className={`flex gap-3 ${!isDetail ? 'ml-auto' : ''}`}>
             <button
               onClick={handleCloseModal}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+              className="px-6 py-2.5 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
             >
               취소
             </button>
             <button
               onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
             >
               <Save className="w-4 h-4" />
               {isDetail ? '수정' : '등록'}
