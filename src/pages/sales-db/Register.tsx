@@ -24,12 +24,12 @@ interface SalesDBRow {
   termination_month: string;
   actual_sales: string;
   contract_date: string;
-  contract_period: string;
-  contract_day: string;
+  contract_amount: string;
+  contract_month: string;
   client_name: string;
-  memo: string;
-  backup_col: string;
-  business_status: string;
+  feedback: string;
+  happycall_content: string;
+  recruitment_record: string;
 }
 
 const emptyRow: SalesDBRow = {
@@ -48,12 +48,12 @@ const emptyRow: SalesDBRow = {
   termination_month: '',
   actual_sales: '',
   contract_date: '',
-  contract_period: '',
-  contract_day: '',
+  contract_amount: '',
+  contract_month: '',
   client_name: '',
-  memo: '',
-  backup_col: '',
-  business_status: '',
+  feedback: '',
+  happycall_content: '',
+  recruitment_record: '',
 };
 
 const SalesDBRegister: React.FC = () => {
@@ -141,12 +141,12 @@ const SalesDBRegister: React.FC = () => {
         '제일월': '0',
         '실제매출': '100000',
         '계약날짜': '2026-01-12',
-        '계약기간로': '0',
-        '계약일': '0',
+        '계약기장료': '500000',
+        '계약월': '1월',
         '거래처': '예송 안세판매',
-        '기타(메모박)': '',
-        '예피클날용': '한글 입력 가능',
-        '상업속자': ''
+        '기타(피드백)': '계약 진행 중',
+        '해피콜내용': '고객 만족',
+        '섭외녹취': ''
       }
     ];
 
@@ -266,12 +266,12 @@ const SalesDBRegister: React.FC = () => {
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">제일월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">실제매출</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약날짜</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약기간로</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약일</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약기장료</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">계약월</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">거래처</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">기타(메모박)</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">예피클날용</th>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">상업속자</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">기타(피드백)</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">해피콜내용</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">섭외녹취</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">작업</th>
             </tr>
           </thead>
@@ -412,18 +412,20 @@ const SalesDBRegister: React.FC = () => {
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
-                    type="text"
-                    value={row.contract_period}
-                    onChange={(e) => handleCellChange(index, 'contract_period', e.target.value)}
-                    className="w-20 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
+                    type="number"
+                    value={row.contract_amount}
+                    onChange={(e) => handleCellChange(index, 'contract_amount', e.target.value)}
+                    className="w-24 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
+                    placeholder="기장료"
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
                     type="text"
-                    value={row.contract_day}
-                    onChange={(e) => handleCellChange(index, 'contract_day', e.target.value)}
+                    value={row.contract_month}
+                    onChange={(e) => handleCellChange(index, 'contract_month', e.target.value)}
                     className="w-20 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
+                    placeholder="1월"
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
@@ -437,25 +439,24 @@ const SalesDBRegister: React.FC = () => {
                 <td className="border border-gray-300 px-1 py-1">
                   <input
                     type="text"
-                    value={row.memo}
-                    onChange={(e) => handleCellChange(index, 'memo', e.target.value)}
+                    value={row.feedback}
+                    onChange={(e) => handleCellChange(index, 'feedback', e.target.value)}
                     className="w-32 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
                     type="text"
-                    value={row.backup_col}
-                    onChange={(e) => handleCellChange(index, 'backup_col', e.target.value)}
+                    value={row.happycall_content}
+                    onChange={(e) => handleCellChange(index, 'happycall_content', e.target.value)}
                     className="w-32 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
-                    placeholder="한글 입력 가능"
                   />
                 </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
                     type="text"
-                    value={row.business_status}
-                    onChange={(e) => handleCellChange(index, 'business_status', e.target.value)}
+                    value={row.recruitment_record}
+                    onChange={(e) => handleCellChange(index, 'recruitment_record', e.target.value)}
                     className="w-24 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
                   />
                 </td>
