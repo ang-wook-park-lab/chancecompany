@@ -19,6 +19,7 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(DATA_DIR, 'uploads/');
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // 대량 JSON 데이터 지원
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // Multer configuration for file uploads (대량 업로드 지원)
@@ -47,6 +48,9 @@ function initDatabase() {
   const dbPath = path.join(dataDir, 'erp.db');
   console.log(`Database path: ${dbPath}`);
   db = new Database(dbPath);
+  
+  // UTF-8 인코딩 설정
+  db.pragma('encoding = "UTF-8"');
   
   // Create tables
   db.exec(`
@@ -373,6 +377,12 @@ function initDatabase() {
 }
 
 initDatabase();
+
+// UTF-8 인코딩 미들웨어 (API 응답용)
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
 
 // API Routes
 
