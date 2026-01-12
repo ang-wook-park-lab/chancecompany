@@ -946,7 +946,7 @@ app.delete('/api/sales-db/:id', (req, res) => {
 });
 
 // Bulk Insert API (테이블 형태 DB 등록용)
-app.post('/api/sales-db/bulk', (req, res) => {
+app.post('/api/sales-db/bulk-register', (req, res) => {
   try {
     const { rows } = req.body;
     
@@ -956,22 +956,29 @@ app.post('/api/sales-db/bulk', (req, res) => {
 
     const stmt = db.prepare(`
       INSERT INTO sales_db (
+        proposal_date, proposer, salesperson_id, meeting_status, company_name, representative,
         address, contact, industry, sales_amount, existing_client, contract_status,
         termination_month, actual_sales, contract_date, contract_month, contract_client, 
         client_name, feedback
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMany = db.transaction((rows) => {
       for (const row of rows) {
         stmt.run(
+          row.proposal_date || null,
+          row.proposer || null,
+          row.salesperson_id || null,
+          row.meeting_status || null,
+          row.company_name || null,
+          row.representative || null,
           row.address || null,
           row.contact || null,
           row.industry || null,
           row.sales_amount || null,
           row.existing_client || null,
-          row.contract_status || 'Y',
-          row.termination_count || null,
+          row.contract_status || null,
+          row.termination_month || null,
           row.actual_sales || null,
           row.contract_date || null,
           row.contract_period || null,
