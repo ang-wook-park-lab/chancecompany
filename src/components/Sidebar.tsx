@@ -22,7 +22,14 @@ import {
   Database,
   DollarSign,
   FileSignature,
-  TrendingUp
+  TrendingUp,
+  Phone,
+  FileEdit,
+  PieChart,
+  Target,
+  Award,
+  Megaphone,
+  UserCog
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -49,7 +56,7 @@ interface MenuItem {
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['인사관리', 'DB관리', '영업자 관리', '계약 관리', '설정관리']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['인사관리', '해피콜', '경정청구', 'DB관리', '영업자 관리', '계약 관리', '설정관리']);
   const [expandedSubMenus, setExpandedSubMenus] = useState<string[]>(['근태관리', '휴가관리']);
   const [clockInTime, setClockInTime] = useState<string | null>(null);
   const [clockOutTime, setClockOutTime] = useState<string | null>(null);
@@ -116,6 +123,31 @@ const Sidebar: React.FC = () => {
       ],
     },
     {
+      title: '해피콜',
+      icon: <Phone className="w-4 h-4" />,
+      children: [
+        { title: '해피콜 관리', path: '/happycall/list', icon: <Phone className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: '경정청구',
+      icon: <FileEdit className="w-4 h-4" />,
+      children: [
+        { title: '경정청구 검토', path: '/correction/list', icon: <FileEdit className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: '실적 관리',
+      icon: <PieChart className="w-4 h-4" />,
+      children: [
+        { title: '월별 실적 현황', path: '/admin/monthly-performance', icon: <BarChart3 className="w-4 h-4" /> },
+        { title: '영업자 개인별 실적', path: '/admin/salesperson-performance', icon: <Target className="w-4 h-4" /> },
+        { title: '섭외자 개인별 실적', path: '/admin/recruiter-performance', icon: <Award className="w-4 h-4" /> },
+        { title: '전체 수수료 요약', path: '/admin/commission-summary', icon: <DollarSign className="w-4 h-4" /> },
+        { title: '매출거래처 관리', path: '/admin/sales-clients', icon: <Building className="w-4 h-4" /> },
+      ],
+    },
+    {
       title: 'DB관리',
       icon: <Database className="w-4 h-4" />,
       children: [
@@ -146,6 +178,9 @@ const Sidebar: React.FC = () => {
       children: [
         { title: '계정설정', path: '/settings/accounts', icon: <Users className="w-4 h-4" /> },
         { title: '회사 설정', path: '/settings/company', icon: <Briefcase className="w-4 h-4" /> },
+        { title: '내 정보 수정', path: '/settings/my-account', icon: <UserCog className="w-4 h-4" /> },
+        { title: '공지사항 관리', path: '/admin/notice-management', icon: <Megaphone className="w-4 h-4" /> },
+        { title: '계정 변경 승인', path: '/admin/account-change-approval', icon: <UserCheck className="w-4 h-4" /> },
       ],
     },
   ];

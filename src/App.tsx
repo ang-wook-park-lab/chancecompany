@@ -37,6 +37,24 @@ import ClockIn from './pages/attendance/ClockIn';
 import ClockOut from './pages/attendance/ClockOut';
 import LeaveRequest from './pages/attendance/LeaveRequest';
 
+// 해피콜
+import HappyCallList from './pages/happycall/List';
+
+// 경정청구
+import CorrectionList from './pages/correction/List';
+
+// 관리자 - 실적 및 수수료
+import MonthlyPerformance from './pages/admin/MonthlyPerformance';
+import SalespersonPerformance from './pages/admin/SalespersonPerformance';
+import CommissionSummary from './pages/admin/CommissionSummary';
+import SalesClients from './pages/admin/SalesClients';
+import RecruiterPerformance from './pages/admin/RecruiterPerformance';
+import AccountChangeApproval from './pages/admin/AccountChangeApproval';
+import NoticeManagement from './pages/admin/NoticeManagement';
+
+// 설정 - 내 정보
+import MyAccount from './pages/settings/MyAccount';
+
 function App() {
   return (
     <AuthProvider>
@@ -78,6 +96,24 @@ function App() {
             {/* 설정 */}
             <Route path="settings/accounts" element={<AccountSettings />} />
             <Route path="settings/company" element={<CompanySettings />} />
+            
+            {/* 해피콜 */}
+            <Route path="happycall/list" element={<HappyCallList />} />
+            
+            {/* 경정청구 */}
+            <Route path="correction/list" element={<CorrectionList />} />
+            
+            {/* 관리자 - 실적 및 수수료 */}
+            <Route path="admin/monthly-performance" element={<MonthlyPerformance />} />
+            <Route path="admin/salesperson-performance" element={<SalespersonPerformance />} />
+            <Route path="admin/commission-summary" element={<CommissionSummary />} />
+            <Route path="admin/sales-clients" element={<SalesClients />} />
+            <Route path="admin/recruiter-performance" element={<RecruiterPerformance />} />
+            <Route path="admin/account-change-approval" element={<AccountChangeApproval />} />
+            <Route path="admin/notice-management" element={<NoticeManagement />} />
+            
+            {/* 설정 - 내 정보 */}
+            <Route path="settings/my-account" element={<MyAccount />} />
           </Route>
         </Routes>
       </Router>

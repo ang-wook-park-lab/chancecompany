@@ -211,6 +211,84 @@ function initDatabase() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    -- 해피콜 관리 테이블
+    CREATE TABLE IF NOT EXISTS happy_calls (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_name TEXT NOT NULL,
+      phone TEXT,
+      satisfaction_level TEXT CHECK(satisfaction_level IN ('상', '중', '하')),
+      content TEXT,
+      handler TEXT,
+      call_date DATE,
+      salesperson_name TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 경정청구 검토 테이블
+    CREATE TABLE IF NOT EXISTS correction_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_name TEXT NOT NULL,
+      representative TEXT,
+      handler TEXT,
+      is_first_startup BOOLEAN DEFAULT 0,
+      status TEXT DEFAULT '대기' CHECK(status IN ('대기', '환급가능', '환급불가', '자료수집X')),
+      progress_status TEXT,
+      refund_amount INTEGER DEFAULT 0,
+      document_delivery DATE,
+      feedback TEXT,
+      sales_db_id INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (sales_db_id) REFERENCES sales_db(id)
+    );
+
+    -- 매출거래처 관리 테이블
+    CREATE TABLE IF NOT EXISTS sales_clients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_name TEXT NOT NULL,
+      client_code TEXT UNIQUE,
+      representative TEXT,
+      contact TEXT,
+      address TEXT,
+      business_type TEXT,
+      commission_rate REAL DEFAULT 0.0,
+      notes TEXT,
+      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 공지사항 테이블
+    CREATE TABLE IF NOT EXISTS notices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      author_id INTEGER NOT NULL,
+      is_important BOOLEAN DEFAULT 0,
+      is_pinned BOOLEAN DEFAULT 0,
+      view_count INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (author_id) REFERENCES users(id)
+    );
+
+    -- 계정 변경 요청 테이블
+    CREATE TABLE IF NOT EXISTS account_change_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      request_type TEXT NOT NULL CHECK(request_type IN ('password', 'info', 'role')),
+      current_value TEXT,
+      new_value TEXT,
+      reason TEXT,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+      approved_by INTEGER,
+      approved_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (approved_by) REFERENCES users(id)
+    );
   `);
 
   // Insert default admin user if not exists
@@ -273,6 +351,22 @@ function initDatabase() {
     if (!e.message.includes('duplicate column')) {
       console.error('contract_date 필드 추가 중 오류:', e.message);
     }
+  }
+
+  // happy_calls 테이블에 sales_db_id 필드 추가 (연계용)
+  try {
+    db.exec('ALTER TABLE happy_calls ADD COLUMN sales_db_id INTEGER');
+    console.log('sales_db_id 필드가 happy_calls 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 무시
+  }
+
+  // sales_db 테이블에 sales_client_id 필드 추가 (매출거래처 연계)
+  try {
+    db.exec('ALTER TABLE sales_db ADD COLUMN sales_client_id INTEGER');
+    console.log('sales_client_id 필드가 sales_db 테이블에 추가되었습니다.');
+  } catch (e) {
+    // 이미 컬럼이 존재하면 무시
   }
 
   console.log('Database initialized at:', dbPath);
@@ -1549,6 +1643,797 @@ app.delete('/api/memos/:id', (req, res) => {
     const stmt = db.prepare('DELETE FROM memos WHERE id = ?');
     stmt.run(id);
     res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 해피콜 관리 API
+// ============================================
+
+// 해피콜 목록 조회
+app.get('/api/happy-calls', (req, res) => {
+  try {
+    const { satisfaction_level, search } = req.query;
+    let query = 'SELECT * FROM happy_calls WHERE 1=1';
+    const params = [];
+
+    if (satisfaction_level && satisfaction_level !== '전체') {
+      query += ' AND satisfaction_level = ?';
+      params.push(satisfaction_level);
+    }
+
+    if (search) {
+      query += ' AND (client_name LIKE ? OR salesperson_name LIKE ? OR handler LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const stmt = db.prepare(query);
+    const happyCalls = stmt.all(...params);
+
+    res.json({ success: true, data: happyCalls });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 해피콜 등록
+app.post('/api/happy-calls', (req, res) => {
+  try {
+    const { client_name, phone, satisfaction_level, content, handler, salesperson_name, call_date } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO happy_calls 
+      (client_name, phone, satisfaction_level, content, handler, salesperson_name, call_date) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(client_name, phone, satisfaction_level, content, handler, salesperson_name, call_date);
+    
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 해피콜 수정
+app.put('/api/happy-calls/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { client_name, phone, satisfaction_level, content, handler, salesperson_name, call_date } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE happy_calls 
+      SET client_name = ?, phone = ?, satisfaction_level = ?, content = ?, 
+          handler = ?, salesperson_name = ?, call_date = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(client_name, phone, satisfaction_level, content, handler, salesperson_name, call_date, id);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 해피콜 삭제
+app.delete('/api/happy-calls/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM happy_calls WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 해피콜 통계
+app.get('/api/happy-calls/stats', (req, res) => {
+  try {
+    const total = db.prepare('SELECT COUNT(*) as count FROM happy_calls').get();
+    const sang = db.prepare('SELECT COUNT(*) as count FROM happy_calls WHERE satisfaction_level = ?').get('상');
+    const jung = db.prepare('SELECT COUNT(*) as count FROM happy_calls WHERE satisfaction_level = ?').get('중');
+    const ha = db.prepare('SELECT COUNT(*) as count FROM happy_calls WHERE satisfaction_level = ?').get('하');
+
+    res.json({
+      success: true,
+      stats: {
+        total: total.count,
+        상: sang.count,
+        중: jung.count,
+        하: ha.count
+      }
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 경정청구 검토 API
+// ============================================
+
+// 경정청구 목록 조회
+app.get('/api/correction-requests', (req, res) => {
+  try {
+    const { status, search } = req.query;
+    let query = 'SELECT * FROM correction_requests WHERE 1=1';
+    const params = [];
+
+    if (status && status !== '전체') {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (search) {
+      query += ' AND (company_name LIKE ? OR representative LIKE ? OR handler LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const stmt = db.prepare(query);
+    const requests = stmt.all(...params);
+
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 경정청구 등록
+app.post('/api/correction-requests', (req, res) => {
+  try {
+    const { 
+      company_name, representative, handler, is_first_startup, 
+      status, progress_status, refund_amount, document_delivery, feedback 
+    } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO correction_requests 
+      (company_name, representative, handler, is_first_startup, status, 
+       progress_status, refund_amount, document_delivery, feedback) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      company_name, representative, handler, is_first_startup ? 1 : 0, 
+      status || '대기', progress_status, refund_amount || 0, 
+      document_delivery, feedback
+    );
+    
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 경정청구 수정
+app.put('/api/correction-requests/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      company_name, representative, handler, is_first_startup, 
+      status, progress_status, refund_amount, document_delivery, feedback 
+    } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE correction_requests 
+      SET company_name = ?, representative = ?, handler = ?, is_first_startup = ?, 
+          status = ?, progress_status = ?, refund_amount = ?, document_delivery = ?, 
+          feedback = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(
+      company_name, representative, handler, is_first_startup ? 1 : 0, 
+      status, progress_status, refund_amount, document_delivery, feedback, id
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 경정청구 삭제
+app.delete('/api/correction-requests/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM correction_requests WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 경정청구 통계
+app.get('/api/correction-requests/stats', (req, res) => {
+  try {
+    const total = db.prepare('SELECT COUNT(*) as count FROM correction_requests').get();
+    const possible = db.prepare('SELECT COUNT(*) as count FROM correction_requests WHERE status = ?').get('환급가능');
+    const impossible = db.prepare('SELECT COUNT(*) as count FROM correction_requests WHERE status = ?').get('환급불가');
+    const totalRefund = db.prepare('SELECT SUM(refund_amount) as total FROM correction_requests WHERE status = ?').get('환급가능');
+
+    res.json({
+      success: true,
+      stats: {
+        total: total.count,
+        possible: possible.count,
+        impossible: impossible.count,
+        totalRefund: totalRefund.total || 0
+      }
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 월별 실적 현황 API
+// ============================================
+
+// 월별 실적 조회
+app.get('/api/monthly-performance', (req, res) => {
+  try {
+    const { year, month, contract_status, client } = req.query;
+    
+    let query = `
+      SELECT 
+        sd.*,
+        u.name as salesperson_name
+      FROM sales_db sd
+      LEFT JOIN users u ON sd.salesperson_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (year && month) {
+      query += ` AND strftime('%Y', sd.proposal_date) = ? AND strftime('%m', sd.proposal_date) = ?`;
+      params.push(year, month.padStart(2, '0'));
+    }
+
+    if (contract_status && contract_status !== '전체') {
+      query += ` AND sd.contract_status = ?`;
+      params.push(contract_status);
+    }
+
+    if (client && client !== '전체') {
+      query += ` AND sd.contract_client = ?`;
+      params.push(client);
+    }
+
+    query += ' ORDER BY sd.proposal_date DESC';
+
+    const stmt = db.prepare(query);
+    const data = stmt.all(...params);
+
+    // 통계 계산
+    const stats = {
+      total: data.length,
+      contracted: data.filter(d => d.contract_status === '계약완료').length,
+      notContracted: data.filter(d => d.contract_status === '미계약').length,
+      meetingCompleted: data.filter(d => d.meeting_status === '미팅완료').length,
+      totalAmount: data.reduce((sum, d) => sum + (d.actual_sales || 0), 0),
+      correctionCount: 0, // 경정청구와 연계 필요
+      correctionRefund: 0
+    };
+
+    res.json({ success: true, data, stats });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 영업자 개인별 실적 API
+// ============================================
+
+// 영업자 개인별 실적 조회
+app.get('/api/salesperson-performance', (req, res) => {
+  try {
+    const { year, month, mode } = req.query;
+    
+    // 영업자 목록 조회
+    const salespersons = db.prepare(`
+      SELECT id, name, employee_code 
+      FROM employees 
+      WHERE user_id IN (SELECT id FROM users WHERE role IN ('salesperson', 'admin'))
+    `).all();
+
+    const performance = salespersons.map(sp => {
+      let query = `
+        SELECT 
+          COUNT(*) as total_db,
+          SUM(CASE WHEN meeting_status = '미팅완료' THEN 1 ELSE 0 END) as meeting_completed,
+          SUM(CASE WHEN contract_status = '계약완료' THEN 1 ELSE 0 END) as contract_completed,
+          SUM(CASE WHEN contract_status = '계약완료' THEN COALESCE(actual_sales, 0) ELSE 0 END) as total_amount
+        FROM sales_db
+        WHERE salesperson_id = (SELECT id FROM users WHERE name = ?)
+      `;
+      const params = [sp.name];
+
+      if (year && month && mode === '이번 달') {
+        query += ` AND strftime('%Y', proposal_date) = ? AND strftime('%m', proposal_date) = ?`;
+        params.push(year, month.padStart(2, '0'));
+      }
+
+      const stats = db.prepare(query).get(...params);
+      const successRate = stats.total_db > 0 ? (stats.contract_completed / stats.total_db * 100).toFixed(1) : 0;
+
+      return {
+        salesperson: sp.name,
+        employee_code: sp.employee_code,
+        total_db: stats.total_db || 0,
+        meeting_completed: stats.meeting_completed || 0,
+        contract_completed: stats.contract_completed || 0,
+        total_amount: stats.total_amount || 0,
+        success_rate: successRate
+      };
+    });
+
+    // 전체 통계
+    const totalStats = performance.reduce((acc, p) => ({
+      total_db: acc.total_db + p.total_db,
+      meeting_completed: acc.meeting_completed + p.meeting_completed,
+      contract_completed: acc.contract_completed + p.contract_completed,
+      total_amount: acc.total_amount + p.total_amount
+    }), { total_db: 0, meeting_completed: 0, contract_completed: 0, total_amount: 0 });
+
+    res.json({ success: true, data: performance, stats: totalStats });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 매출거래처 관리 API
+// ============================================
+
+// 매출거래처 목록 조회
+app.get('/api/sales-clients', (req, res) => {
+  try {
+    const { status, search } = req.query;
+    let query = 'SELECT * FROM sales_clients WHERE 1=1';
+    const params = [];
+
+    if (status && status !== '전체') {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+
+    if (search) {
+      query += ' AND (client_name LIKE ? OR representative LIKE ? OR client_code LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const stmt = db.prepare(query);
+    const clients = stmt.all(...params);
+
+    res.json({ success: true, data: clients });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 매출거래처 등록
+app.post('/api/sales-clients', (req, res) => {
+  try {
+    const { client_name, client_code, representative, contact, address, business_type, commission_rate, notes, status } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO sales_clients 
+      (client_name, client_code, representative, contact, address, business_type, commission_rate, notes, status) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(client_name, client_code, representative, contact, address, business_type, commission_rate || 0, notes, status || 'active');
+    
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 매출거래처 수정
+app.put('/api/sales-clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { client_name, client_code, representative, contact, address, business_type, commission_rate, notes, status } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE sales_clients 
+      SET client_name = ?, client_code = ?, representative = ?, contact = ?, address = ?, 
+          business_type = ?, commission_rate = ?, notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(client_name, client_code, representative, contact, address, business_type, commission_rate, notes, status, id);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 매출거래처 삭제
+app.delete('/api/sales-clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM sales_clients WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 공지사항 관리 API
+// ============================================
+
+// 공지사항 목록 조회
+app.get('/api/notices', (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = `
+      SELECT n.*, u.name as author_name 
+      FROM notices n
+      LEFT JOIN users u ON n.author_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (search) {
+      query += ' AND (n.title LIKE ? OR n.content LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    query += ' ORDER BY n.is_pinned DESC, n.created_at DESC';
+
+    const stmt = db.prepare(query);
+    const notices = stmt.all(...params);
+
+    res.json({ success: true, data: notices });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 공지사항 등록
+app.post('/api/notices', (req, res) => {
+  try {
+    const { title, content, author_id, is_important, is_pinned } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO notices 
+      (title, content, author_id, is_important, is_pinned) 
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(title, content, author_id, is_important ? 1 : 0, is_pinned ? 1 : 0);
+    
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 공지사항 수정
+app.put('/api/notices/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, is_important, is_pinned } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE notices 
+      SET title = ?, content = ?, is_important = ?, is_pinned = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(title, content, is_important ? 1 : 0, is_pinned ? 1 : 0, id);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 공지사항 삭제
+app.delete('/api/notices/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM notices WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 공지사항 조회수 증가
+app.post('/api/notices/:id/view', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('UPDATE notices SET view_count = view_count + 1 WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 계정 변경 승인 API
+// ============================================
+
+// 계정 변경 요청 목록 조회
+app.get('/api/account-change-requests', (req, res) => {
+  try {
+    const { status } = req.query;
+    let query = `
+      SELECT acr.*, u.name as user_name, u.username, a.name as approver_name
+      FROM account_change_requests acr
+      LEFT JOIN users u ON acr.user_id = u.id
+      LEFT JOIN users a ON acr.approved_by = a.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (status && status !== '전체') {
+      query += ' AND acr.status = ?';
+      params.push(status);
+    }
+
+    query += ' ORDER BY acr.created_at DESC';
+
+    const stmt = db.prepare(query);
+    const requests = stmt.all(...params);
+
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 계정 변경 요청 등록
+app.post('/api/account-change-requests', (req, res) => {
+  try {
+    const { user_id, request_type, current_value, new_value, reason } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO account_change_requests 
+      (user_id, request_type, current_value, new_value, reason) 
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(user_id, request_type, current_value, new_value, reason);
+    
+    res.json({ success: true, id: result.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 계정 변경 요청 승인/거부
+app.put('/api/account-change-requests/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, approved_by } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE account_change_requests 
+      SET status = ?, approved_by = ?, approved_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    
+    stmt.run(status, approved_by, id);
+    
+    // 승인된 경우 실제 변경 적용
+    if (status === 'approved') {
+      const request = db.prepare('SELECT * FROM account_change_requests WHERE id = ?').get(id);
+      
+      if (request.request_type === 'password') {
+        db.prepare('UPDATE users SET password = ? WHERE id = ?').run(request.new_value, request.user_id);
+      } else if (request.request_type === 'role') {
+        db.prepare('UPDATE users SET role = ? WHERE id = ?').run(request.new_value, request.user_id);
+      }
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 전체 수수료 요약 API
+// ============================================
+
+app.get('/api/commission-summary', (req, res) => {
+  try {
+    const { year, month } = req.query;
+    
+    // 기본 쿼리 - 계약 정보
+    let contractQuery = `
+      SELECT 
+        sd.id,
+        sd.company_name,
+        sd.contract_status,
+        sd.actual_sales,
+        sd.commission_rate,
+        sd.proposer,
+        u.name as salesperson_name,
+        sc.client_name as sales_client_name,
+        sd.contract_date
+      FROM sales_db sd
+      LEFT JOIN users u ON sd.salesperson_id = u.id
+      LEFT JOIN sales_clients sc ON sd.sales_client_id = sc.id
+      WHERE sd.contract_status = '계약완료'
+    `;
+    
+    const params = [];
+    
+    if (year && month) {
+      contractQuery += ` AND strftime('%Y', sd.contract_date) = ? AND strftime('%m', sd.contract_date) = ?`;
+      params.push(year, month.padStart(2, '0'));
+    }
+    
+    const contracts = db.prepare(contractQuery).all(...params);
+    
+    // 수수료 계산
+    const commissionData = contracts.map(c => ({
+      ...c,
+      commission_amount: (c.actual_sales || 0) * (c.commission_rate || 0) / 100
+    }));
+    
+    // 통계
+    const stats = {
+      totalContracts: contracts.length,
+      totalSales: commissionData.reduce((sum, c) => sum + (c.actual_sales || 0), 0),
+      totalCommission: commissionData.reduce((sum, c) => sum + c.commission_amount, 0),
+      avgCommissionRate: contracts.length > 0 
+        ? commissionData.reduce((sum, c) => sum + (c.commission_rate || 0), 0) / contracts.length 
+        : 0
+    };
+    
+    res.json({ success: true, data: commissionData, stats });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 월별 실적 현황 API
+// ============================================
+
+app.get('/api/monthly-performance', (req, res) => {
+  try {
+    const { year, month, contract_status, client } = req.query;
+    
+    let query = `
+      SELECT 
+        sd.id,
+        sd.proposal_date,
+        sd.proposer,
+        u.name as salesperson_name,
+        sd.company_name,
+        sd.representative,
+        sd.contact,
+        sd.meeting_status,
+        sd.contract_status,
+        sd.contract_client,
+        sd.actual_sales,
+        sd.commission_rate
+      FROM sales_db sd
+      LEFT JOIN users u ON sd.salesperson_id = u.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (year && month) {
+      query += ` AND strftime('%Y', sd.proposal_date) = ? AND strftime('%m', sd.proposal_date) = ?`;
+      params.push(year, month.padStart(2, '0'));
+    }
+    
+    if (contract_status && contract_status !== '전체') {
+      query += ' AND sd.contract_status = ?';
+      params.push(contract_status);
+    }
+    
+    if (client && client !== '전체') {
+      query += ' AND sd.contract_client = ?';
+      params.push(client);
+    }
+    
+    query += ' ORDER BY sd.proposal_date DESC';
+    
+    const data = db.prepare(query).all(...params);
+    
+    // 통계 계산
+    const stats = {
+      total: data.length,
+      contracted: data.filter(d => d.contract_status === '계약완료').length,
+      notContracted: data.filter(d => d.contract_status === '미계약').length,
+      meetingCompleted: data.filter(d => d.meeting_status === '미팅완료').length,
+      totalAmount: data.reduce((sum, d) => sum + (d.actual_sales || 0), 0),
+      correctionCount: 0,
+      correctionRefund: 0
+    };
+    
+    // 경정청구 통계 추가
+    if (year && month) {
+      const correctionStats = db.prepare(`
+        SELECT COUNT(*) as count, SUM(refund_amount) as total_refund
+        FROM correction_requests
+        WHERE strftime('%Y', created_at) = ? AND strftime('%m', created_at) = ?
+      `).get(year, month.padStart(2, '0'));
+      
+      stats.correctionCount = correctionStats.count || 0;
+      stats.correctionRefund = correctionStats.total_refund || 0;
+    }
+    
+    res.json({ success: true, data, stats });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 섭외자 개인별 실적 API
+// ============================================
+
+app.get('/api/recruiter-performance', (req, res) => {
+  try {
+    const { year, month } = req.query;
+    
+    // 섭외자별 통계
+    let query = `
+      SELECT 
+        proposer,
+        COUNT(*) as total_proposed,
+        SUM(CASE WHEN meeting_status = '미팅완료' THEN 1 ELSE 0 END) as meeting_completed,
+        SUM(CASE WHEN contract_status = '계약완료' THEN 1 ELSE 0 END) as contract_completed,
+        SUM(CASE WHEN contract_status = '계약완료' THEN COALESCE(actual_sales, 0) ELSE 0 END) as total_amount
+      FROM sales_db
+      WHERE proposer IS NOT NULL AND proposer != ''
+    `;
+    
+    const params = [];
+    
+    if (year && month) {
+      query += ` AND strftime('%Y', proposal_date) = ? AND strftime('%m', proposal_date) = ?`;
+      params.push(year, month.padStart(2, '0'));
+    }
+    
+    query += ' GROUP BY proposer ORDER BY total_proposed DESC';
+    
+    const recruiters = db.prepare(query).all(...params);
+    
+    // 성공률 계산
+    const performance = recruiters.map(r => ({
+      ...r,
+      success_rate: r.total_proposed > 0 ? (r.contract_completed / r.total_proposed * 100).toFixed(1) : 0
+    }));
+    
+    // 전체 통계
+    const totalStats = performance.reduce((acc, p) => ({
+      total_proposed: acc.total_proposed + p.total_proposed,
+      meeting_completed: acc.meeting_completed + p.meeting_completed,
+      contract_completed: acc.contract_completed + p.contract_completed,
+      total_amount: acc.total_amount + p.total_amount
+    }), { total_proposed: 0, meeting_completed: 0, contract_completed: 0, total_amount: 0 });
+    
+    res.json({ success: true, data: performance, stats: totalStats });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
