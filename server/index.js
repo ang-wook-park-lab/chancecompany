@@ -236,6 +236,7 @@ function initDatabase() {
       company_name TEXT NOT NULL,
       representative TEXT,
       handler TEXT,
+      special_relationship TEXT,
       is_first_startup BOOLEAN DEFAULT 0,
       status TEXT DEFAULT '대기' CHECK(status IN ('대기', '환급가능', '환급불가', '자료수집X')),
       progress_status TEXT,
@@ -940,6 +941,52 @@ app.delete('/api/sales-db/:id', (req, res) => {
     stmt.run(id);
     res.json({ success: true });
   } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// Bulk Insert API (테이블 형태 DB 등록용)
+app.post('/api/sales-db/bulk', (req, res) => {
+  try {
+    const { rows } = req.body;
+    
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      return res.json({ success: false, message: '저장할 데이터가 없습니다.' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO sales_db (
+        address, contact, industry, sales_amount, existing_client, contract_status,
+        termination_month, actual_sales, contract_date, contract_month, contract_client, 
+        client_name, feedback
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertMany = db.transaction((rows) => {
+      for (const row of rows) {
+        stmt.run(
+          row.address || null,
+          row.contact || null,
+          row.industry || null,
+          row.sales_amount || null,
+          row.existing_client || null,
+          row.contract_status || 'Y',
+          row.termination_count || null,
+          row.actual_sales || null,
+          row.contract_date || null,
+          row.contract_period || null,
+          row.client_name || null,
+          row.client_name || null,
+          row.memo || null
+        );
+      }
+    });
+
+    insertMany(rows);
+    
+    res.json({ success: true, count: rows.length });
+  } catch (error) {
+    console.error('Bulk insert error:', error);
     res.json({ success: false, message: error.message });
   }
 });
