@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, Plus, Trash2, Download } from 'lucide-react';
+import { Upload, Save, Plus, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Salesperson {
@@ -251,7 +251,6 @@ const SalesDBRegister: React.FC = () => {
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-50 sticky top-0">
             <tr>
-              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">작업</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">섭외날짜</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">섭외자</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">영업자</th>
@@ -273,21 +272,12 @@ const SalesDBRegister: React.FC = () => {
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">기타(메모박)</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">예피클날용</th>
               <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">상업속자</th>
+              <th className="border border-gray-300 px-2 py-2 text-xs font-medium text-gray-700">작업</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row, index) => (
               <tr key={index} className="hover:bg-gray-50">
-                <td className="border border-gray-300 px-2 py-1">
-                  <button
-                    onClick={() => handleRemoveRow(index)}
-                    disabled={rows.length === 1}
-                    className="text-red-600 hover:text-red-900 disabled:text-gray-400"
-                    title="행 삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
                 <td className="border border-gray-300 px-1 py-1">
                   <input
                     type="date"
@@ -468,6 +458,16 @@ const SalesDBRegister: React.FC = () => {
                     onChange={(e) => handleCellChange(index, 'business_status', e.target.value)}
                     className="w-24 px-1 py-1 text-sm border-0 focus:ring-1 focus:ring-blue-500"
                   />
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-center">
+                  <button
+                    onClick={() => handleRemoveRow(index)}
+                    disabled={rows.length === 1}
+                    className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 disabled:bg-gray-300 inline-flex items-center gap-1"
+                    title="행 삭제"
+                  >
+                    <span className="text-xs">☺</span> 폐쇄 생략
+                  </button>
                 </td>
               </tr>
             ))}
