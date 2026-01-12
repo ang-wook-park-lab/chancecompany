@@ -2453,6 +2453,142 @@ app.get('/api/monthly-performance', (req, res) => {
 });
 
 // ============================================
+// 영업자 수수료 명세서 상세 API
+// ============================================
+
+app.get('/api/salesperson/:id/commission-details', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { year, month } = req.query;
+    
+    let query = `
+      SELECT 
+        id,
+        company_name,
+        contract_date,
+        actual_sales as contract_amount,
+        commission_rate,
+        CAST((actual_sales * commission_rate / 100.0) as INTEGER) as commission_amount
+      FROM sales_db
+      WHERE salesperson_id = ?
+      AND contract_status = '계약완료'
+      AND actual_sales > 0
+    `;
+    
+    const params = [id];
+    
+    if (year && month) {
+      query += ` AND strftime('%Y', contract_date) = ? AND strftime('%m', contract_date) = ?`;
+      params.push(year, month.toString().padStart(2, '0'));
+    }
+    
+    query += ' ORDER BY contract_date DESC';
+    
+    const details = db.prepare(query).all(...params);
+    
+    res.json({ success: true, data: details, otherCommissions: [] });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// 수수료 확정 API
+app.post('/api/commission-statement/confirm', (req, res) => {
+  try {
+    const { 
+      salesperson_id, 
+      year, 
+      month, 
+      contract_commission, 
+      other_commissions,
+      total_commission, 
+      withholding_tax, 
+      net_amount 
+    } = req.body;
+    
+    // 수수료 명세서 저장
+    const stmt = db.prepare(`
+      INSERT INTO commission_statements 
+      (salesperson_id, period_start, period_end, total_sales, total_commission, payment_status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `);
+    
+    const periodStart = `${year}-${month.toString().padStart(2, '0')}-01`;
+    const periodEnd = `${year}-${month.toString().padStart(2, '0')}-${new Date(year, month, 0).getDate()}`;
+    
+    const info = stmt.run(salesperson_id, periodStart, periodEnd, contract_commission, net_amount);
+    
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
+// 매출거래처 관리 API 업데이트
+// ============================================
+
+// 매출거래처 CRUD
+app.get('/api/sales-clients', (req, res) => {
+  try {
+    const clients = db.prepare(`
+      SELECT id, client_name, commission_rate, description
+      FROM sales_clients
+      ORDER BY client_name ASC
+    `).all();
+    
+    res.json({ success: true, data: clients });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/sales-clients', (req, res) => {
+  try {
+    const { client_name, commission_rate, description } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO sales_clients (client_name, commission_rate, description)
+      VALUES (?, ?, ?)
+    `);
+    
+    const info = stmt.run(client_name, commission_rate || 500, description || '');
+    res.json({ success: true, id: info.lastInsertRowid });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.put('/api/sales-clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { client_name, commission_rate, description } = req.body;
+    
+    const stmt = db.prepare(`
+      UPDATE sales_clients
+      SET client_name = ?, commission_rate = ?, description = ?
+      WHERE id = ?
+    `);
+    
+    stmt.run(client_name, commission_rate, description || '', id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/sales-clients/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const stmt = db.prepare('DELETE FROM sales_clients WHERE id = ?');
+    stmt.run(id);
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+});
+
+// ============================================
 // 섭외자 개인별 실적 API
 // ============================================
 

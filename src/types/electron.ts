@@ -70,6 +70,7 @@ export interface CorrectionRequest {
   company_name: string;
   representative?: string;
   handler?: string;
+  special_relationship?: string;
   is_first_startup: boolean;
   status: '대기' | '환급가능' | '환급불가' | '자료수집X';
   progress_status?: string;
